@@ -1,0 +1,13 @@
+# Data preparation config
+
+dataset_name: spider
+raw_dir: data/raw
+processed_dir: data/processed
+
+# Question + schema + SQL comfortably fits in this budget for Spider
+max_seq_length: 1024
+
+# Output splits produced by preprocessing
+train_file: data/processed/train.json
+dev_file: data/processed/dev.json
+test_file: data/processed/test.json

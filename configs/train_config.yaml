@@ -1,0 +1,29 @@
+# QLoRA fine-tuning config
+# Defaults sized for a single 12GB consumer GPU (e.g. RTX 3060 12GB)
+
+base_model: Qwen/Qwen2.5-Coder-7B-Instruct
+output_dir: checkpoints
+
+quantization:
+  load_in_4bit: true
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+
+training:
+  max_seq_length: 1024
+  per_device_train_batch_size: 2
+  gradient_accumulation_steps: 8
+  num_train_epochs: 3
+  learning_rate: 2e-4
+  lr_scheduler_type: cosine
+  warmup_ratio: 0.03
+  logging_steps: 10
+  save_strategy: epoch
+
+experiment_tracking:
+  provider: wandb
+  project: text2sql-qlora

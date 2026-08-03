@@ -1,0 +1,18 @@
+# Evaluation config
+
+metrics:
+  - exact_match
+  - execution_accuracy
+
+baselines:
+  zero_shot:
+    enabled: true
+  few_shot:
+    enabled: true
+    num_examples: 5
+
+test_file: data/processed/test.json
+
+# Breaks down execution accuracy by query complexity
+error_analysis:
+  categories: [select, join, subquery, aggregation]
