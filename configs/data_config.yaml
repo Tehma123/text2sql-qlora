@@ -4,8 +4,11 @@ dataset_name: spider
 raw_dir: data/raw
 processed_dir: data/processed
 
-# Question + schema + SQL comfortably fits in this budget for Spider
-max_seq_length: 1024
+# Covers 99%+ of Spider examples once tokenized (measured with the real base
+# model tokenizer -- see reports/data_preparation.md); examples still over
+# this budget are dropped during preprocessing rather than truncated, since
+# truncation would clip the gold SQL answer instead of the schema.
+max_seq_length: 1536
 
 # Output splits produced by preprocessing
 train_file: data/processed/train.json

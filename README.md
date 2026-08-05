@@ -128,8 +128,8 @@ Two baselines are measured before fine-tuning to make the comparison meaningful:
 ## Roadmap
 
 - [x] Define problem scope and approach
-- [ ] Data preparation (download Spider, explore schema, build instruction-formatted dataset)
-- [ ] Baseline evaluation (zero-shot / few-shot)
+- [x] Data preparation (download Spider, explore schema, build instruction-formatted dataset)
+- [x] Baseline evaluation (zero-shot / few-shot)
 - [ ] QLoRA fine-tuning setup and training runs
 - [ ] Post-tuning evaluation and comparison
 - [ ] Error analysis

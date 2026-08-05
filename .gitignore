@@ -32,6 +32,9 @@ results/*/*
 # Experiment tracking
 wandb/
 
+# Unsloth compiled-kernel cache
+unsloth_compiled_cache/
+
 # Notebooks
 .ipynb_checkpoints/
 

@@ -8,6 +8,11 @@ accelerate
 # QLoRA fine-tuning
 unsloth
 bitsandbytes
+# unsloth imports this even though it's not declared as a hard dependency --
+# without it, `import unsloth` fails outright. Install from the same CUDA
+# index as torch (e.g. https://download.pytorch.org/whl/cu126) or a plain
+# `pip install torchvision` may upgrade/mismatch your existing torch build.
+torchvision
 
 # Experiment tracking
 wandb
@@ -18,6 +23,18 @@ gradio
 # Config / utilities
 pyyaml
 python-dotenv
+
+# Data download
+gdown
+
+# Evaluation (exact-match SQL normalization)
+sqlglot
+
+# Notebook exploration (notebooks/01_explore_spider.ipynb)
+jupyter
+ipykernel
+pandas
+matplotlib
 
 # NOTE: torch / bitsandbytes / unsloth are CUDA-build-specific.
 # Follow the official install instructions for your CUDA version
