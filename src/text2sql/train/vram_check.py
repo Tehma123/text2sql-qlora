@@ -63,25 +63,12 @@ def _load_peft(base_model: str, lora_cfg: dict, max_seq_length: int):
 
 
 def _load_unsloth(base_model: str, lora_cfg: dict, max_seq_length: int):
-    import unsloth  # noqa: F401 -- must be imported before transformers/peft get used
-    from unsloth import FastLanguageModel
+    # Delegates to the same loader the real training run uses
+    # (text2sql.train.train_qlora) -- the point of this measurement is to
+    # know what that run will actually do, not a lookalike.
+    from text2sql.models.load_model import load_model_for_training
 
-    model, tokenizer = FastLanguageModel.from_pretrained(
-        model_name=QUANTIZED_MODEL_ID,
-        max_seq_length=max_seq_length,
-        load_in_4bit=True,
-        dtype=None,
-    )
-    model = FastLanguageModel.get_peft_model(
-        model,
-        r=lora_cfg["r"],
-        target_modules=lora_cfg["target_modules"],
-        lora_alpha=lora_cfg["alpha"],
-        lora_dropout=lora_cfg["dropout"],
-        use_gradient_checkpointing="unsloth",
-        max_seq_length=max_seq_length,
-    )
-    return model, tokenizer
+    return load_model_for_training(lora_cfg, max_seq_length)
 
 
 def run(batch_size: int, backend: str, data_config_path: str, train_config_path: str) -> dict:

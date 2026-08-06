@@ -1,7 +1,13 @@
 # QLoRA fine-tuning config
 # Defaults sized for a single 12GB consumer GPU (e.g. RTX 3060 12GB)
 
-base_model: Qwen/Qwen2.5-Coder-7B-Instruct
+# Was Qwen/Qwen2.5-Coder-7B-Instruct -- switched to 3B after a real training
+# run on 7B (not just the single-step vram_check.py measurement below) hit
+# ~11.3GB/12GB dedicated VRAM and nearly exhausted BAR1 memory once real,
+# varied batches ran for hours, throttling Unsloth's CPU-offloaded gradient
+# checkpointing and slowing training to ~5x the originally-measured rate.
+# See reports/qlora_training.md for the full incident writeup.
+base_model: Qwen/Qwen2.5-Coder-3B-Instruct
 output_dir: checkpoints
 
 quantization:
@@ -15,14 +21,15 @@ lora:
 
 training:
   max_seq_length: 1536
-  # Verified with scripts/check_vram.py --backend unsloth --batch-size 2 on
-  # a real RTX 3060 12GB: peak 8.36GB allocated / 9.92GB reserved for one
-  # training step at this max_seq_length -- comfortable headroom. The same
-  # config under plain peft/bitsandbytes (no Unsloth) peaked at 16.5GB and
-  # didn't fit even at batch_size=1 (12.97GB reserved) -- Qwen's 152K
-  # vocabulary makes the loss computation's fp32 logits the dominant cost,
-  # which is specifically what Unsloth's fused kernels avoid. See
-  # reports/data_preparation.md for the full comparison.
+  # Re-measured against the 3B model after the 7B pivot (scripts/check_vram.py
+  # --backend unsloth --batch-size 2): peak 4.09GB allocated / 4.72GB
+  # reserved for one training step -- well under half of what 7B used
+  # (8.36GB / 9.92GB), with over 7GB of the 12GB card still free at that
+  # point. Worth the caveat: the 7B number also looked comfortable from a
+  # single near-worst-case step and still underpredicted real sustained-run
+  # VRAM/BAR1 pressure once already (reports/qlora_training.md has the full
+  # incident) -- but the margin here is now large enough that a similar
+  # proportional miss would be very unlikely to matter.
   per_device_train_batch_size: 2
   gradient_accumulation_steps: 8
   num_train_epochs: 3
@@ -32,8 +39,15 @@ training:
   learning_rate: 2.0e-4
   lr_scheduler_type: cosine
   warmup_ratio: 0.03
+  weight_decay: 0.01
   logging_steps: 10
   save_strategy: epoch
+  eval_strategy: epoch
+  # 8-bit optimizer states (bitsandbytes) -- LoRA-only trainable params make
+  # this a small saving in absolute terms, but it's free extra headroom on
+  # top of the margin measured in vram_check.py, and is Unsloth's own
+  # default recommendation for this exact setup.
+  optim: adamw_8bit
 
 experiment_tracking:
   provider: wandb

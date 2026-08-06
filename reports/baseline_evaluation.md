@@ -1,18 +1,48 @@
 # Baseline Evaluation
 
-Status: done. Both baselines run on the full 2,147-example `test` split.
+Status: **done, on the current (3B) base model.** Originally run against
+Qwen2.5-Coder-7B-Instruct (both baselines) -- the project has since pivoted
+to Qwen2.5-Coder-3B-Instruct (`reports/qlora_training.md`, "Pivot: 7B ->
+3B") after a real training run showed 7B doesn't fit the 12GB target GPU as
+comfortably as a single-step VRAM check suggested. 7B's baselines no longer
+apply as the comparison floor for fine-tuning; both 3B baselines are now
+measured below.
 
 ## Summary
 
-| Baseline | exact_match | execution_accuracy | wall-clock |
-|---|---|---|---|
-| Zero-shot | 33.7% | 75.9% | ~84 min (~2.3s/example) |
-| Few-shot (5 examples) | **50.5%** | **80.2%** | ~97 min (~2.7s/example) |
+| Baseline | Model | exact_match | execution_accuracy | wall-clock |
+|---|---|---|---|---|
+| Zero-shot | 7B (superseded) | 33.7% | 75.9% | ~84 min (~2.3s/example) |
+| Few-shot (5 examples) | 7B (superseded) | 50.5% | 80.2% | ~97 min (~2.7s/example) |
+| **Zero-shot** | **3B (current)** | **26.9%** | **66.3%** | **~58 min (~1.6s/example)** |
+| **Few-shot (5 examples)** | **3B (current)** | **50.9%** | **74.3%** | **~53 min (~1.5s/example)** |
 
-Five worked examples lift exact match by ~17 points and execution accuracy
-by ~4 points over zero-shot -- a real, measured floor for QLoRA fine-tuning
-to beat, not an assumption. Few-shot costs more per example (longer prompts
-to prefill) but not proportionally to the accuracy gain.
+3B zero-shot lands meaningfully below 7B's: -6.8 points exact_match, -9.6
+points execution_accuracy. Consistent with what was flagged as a real risk
+when the pivot was decided -- smaller models are generally weaker at exactly
+what Spider's fully cross-domain test set stresses (generalizing to 40
+database schemas never seen in training).
+
+**But few-shot narrows that gap substantially, and closes it entirely on
+exact_match:** 3B few-shot (50.9%) is actually marginally *above* 7B
+few-shot (50.5%), while the execution_accuracy gap shrinks from -9.6 points
+(zero-shot) to -5.9 points (74.3% vs 80.2%). This tracks with a hypothesis
+formed while the run was still in progress: few-shot's main measured effect
+(both here and in the original 7B run below) is teaching the model the
+dataset's SQL *formatting conventions* via demonstration -- a
+pattern-copying skill -- rather than deeper schema reasoning. A smaller
+model can apparently copy a demonstrated format just as well as a larger
+one, even where it lags on zero-shot schema understanding. 3B is also faster
+per example throughout (~1.6s zero-shot, ~1.5s few-shot vs 7B's ~2.3s/~2.7s),
+though not proportionally to its ~43% parameter share, since generation
+latency is more bandwidth-bound than compute-bound.
+
+**Early running numbers during this eval were misleadingly high and are not
+representative** -- both 3B runs processed examples in database order, so
+the first ~15-20% of progress reflected only 1-2 (easier) databases; few-shot
+peaked at 63.1%/83.6% around n=450 before settling down to the final
+50.9%/74.3% as harder databases entered the average. Worth remembering next
+time an early partial read looks unexpectedly good.
 
 Measures where the un-finetuned base model stands, so the value of QLoRA
 fine-tuning (next roadmap phase) is demonstrated against real numbers rather
@@ -23,10 +53,11 @@ than assumed (README: "Why Fine-tuning?"). Two baselines per
 
 ## Setup
 
-- Model: `unsloth/Qwen2.5-Coder-7B-Instruct-bnb-4bit` (same weights
-  `train_config.yaml`'s `base_model` resolves to), loaded via Unsloth's
-  `FastLanguageModel` for inference -- no LoRA applied, this is the stock
-  pretrained model.
+- Model: `unsloth/Qwen2.5-Coder-3B-Instruct-bnb-4bit` (current; was
+  `unsloth/Qwen2.5-Coder-7B-Instruct-bnb-4bit` before the pivot -- same
+  weights `train_config.yaml`'s `base_model` resolves to either way), loaded
+  via Unsloth's `FastLanguageModel` for inference -- no LoRA applied, this is
+  the stock pretrained model.
 - Metrics (`src/text2sql/eval/metrics.py`):
   - **Exact match**: both queries parsed and canonicalized with `sqlglot`
     (dialect `sqlite`) before comparing, so whitespace/casing/quoting
@@ -42,16 +73,35 @@ than assumed (README: "Why Fine-tuning?"). Two baselines per
 
 ## Zero-shot results
 
+### 3B (current)
+
+| n | exact_match | execution_accuracy | wall-clock time |
+|---|---|---|---|
+| 2,147 | 26.9% | 66.3% | ~58 min (incl. model load) on the RTX 3060 12GB, ~1.6s/example |
+
+Pace was checked throughout the run (not just at the end) specifically
+because the prior 7B *training* run had shown a rate that degraded badly
+partway through (see `reports/qlora_training.md`) -- this zero-shot
+*inference* run showed no such trend: ~1.2-2.4s/example fluctuation
+throughout with no worsening pattern, consistent with inference not touching
+the CPU-offloaded gradient-checkpointing path that caused the training
+slowdown.
+
+### 7B (superseded)
+
 | n | exact_match | execution_accuracy | wall-clock time |
 |---|---|---|---|
 | 2,147 | 33.7% | 75.9% | ~84 min (incl. model load) on the RTX 3060 12GB, ~2.3s/example |
 
-Execution accuracy well above exact match is expected -- many
+Execution accuracy well above exact match is expected in both cases -- many
 syntactically-different queries return identical results (e.g. `count(*)` vs
 `COUNT(*)`, or reordered column lists), which is exactly why the README
 treats execution accuracy as "more meaningful."
 
 ## Bug found and fixed: few-shot prompts were being silently truncated
+
+(Found during the original 7B run; the fix is in shared, model-agnostic code
+and still applies going forward.)
 
 The first few-shot run was killed partway through after its log filled with:
 
@@ -104,6 +154,19 @@ cross-domain few-shot prompting.
 
 ## Few-shot results
 
+### 3B (current)
+
+| n | exact_match | execution_accuracy | wall-clock time |
+|---|---|---|---|
+| 2,147 | 50.9% | 74.3% | ~53 min (incl. model load) on the RTX 3060 12GB, ~1.5s/example |
+
+Both metrics improved over 3B's own zero-shot, and by a wide margin on exact
+match (26.9% -> 50.9%, +24 points -- an even bigger lift than 7B saw). See
+the Summary section above for the full 3B-vs-7B comparison and the
+"formatting convention" hypothesis for why few-shot closes the gap.
+
+### 7B (superseded)
+
 | n | exact_match | execution_accuracy | wall-clock time |
 |---|---|---|---|
 | 2,147 | 50.5% | 80.2% | ~97 min (incl. model load) on the RTX 3060 12GB, ~2.7s/example |
@@ -113,5 +176,5 @@ match (33.7% -> 50.5%), since seeing a couple of worked examples on an
 unfamiliar schema helps the model match the dataset's SQL formatting
 conventions (e.g. spacing around commas, `count(*)` vs `COUNT(*)`) even when
 it already had enough schema understanding to get the *result* right
-zero-shot. Full per-example predictions for both baselines are in
-`results/baselines/{zero_shot,few_shot}.json`.
+zero-shot. Full per-example predictions for the current model are in
+`results/baselines/{zero_shot,few_shot}.json` (3B).

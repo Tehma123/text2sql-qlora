@@ -80,7 +80,7 @@ Demo (Gradio) + technical report
 | Component | Choice | Rationale |
 |---|---|---|
 | **Dataset** | [Spider](https://yale-lily.github.io/spider) | Standard Text-to-SQL benchmark, ~7,000 training examples, diverse schemas, established leaderboard for comparison |
-| **Base model** | Qwen2.5-Coder-7B-Instruct | Strong code/SQL capabilities; 7B fits comfortably in 12GB VRAM with QLoRA |
+| **Base model** | Qwen2.5-Coder-3B-Instruct | Strong code/SQL capabilities for its size; started at 7B, but a real multi-hour training run (not just a single-step VRAM check) showed 7B doesn't actually fit *comfortably* in 12GB — it drove dedicated VRAM to ~11.3GB and nearly exhausted BAR1 memory, throttling training to ~5x slower than measured. 3B re-measured at 4.09GB/4.72GB peak, leaving >7GB of headroom. See `reports/qlora_training.md` for the full incident |
 | **Fine-tuning method** | QLoRA (4-bit) via Unsloth | VRAM-efficient, faster than plain PEFT, the standard approach for local fine-tuning today |
 | **Evaluation** | Exact Match + Execution Accuracy | Exact Match checks structural correctness; Execution Accuracy checks whether the generated SQL returns the correct result against a real database (more meaningful, since equivalent SQL can differ syntactically) |
 | **Experiment tracking** | Weights & Biases | Tracks loss curves and enables comparison across hyperparameter runs |
@@ -101,7 +101,7 @@ Demo (Gradio) + technical report
 This project is designed to run on a single consumer GPU:
 
 - **Minimum**: NVIDIA GPU with 12GB VRAM (e.g. RTX 3060 12GB), 32GB system RAM
-- 4-bit quantization keeps the 7B model within VRAM limits
+- 4-bit quantization keeps the model comfortably within VRAM limits
 - Small batch size (1–2) with gradient accumulation (8–16 steps) simulates a larger effective batch
 - Max sequence length capped around 1024 tokens (sufficient for question + schema + SQL in Spider)
 - LoRA rank starts at 16–32
@@ -121,7 +121,7 @@ Two baselines are measured before fine-tuning to make the comparison meaningful:
 
 ## Success Criteria
 
-- Execution accuracy of the fine-tuned model shows a clear, measurable improvement over both baselines
+- Execution accuracy of the fine-tuned model shows a clear, measurable improvement over both baselines. Target: **~80%** on the `test` split, against Qwen2.5-Coder-3B-Instruct's own measured baselines (66.3% zero-shot, 74.3% few-shot — see `reports/baseline_evaluation.md`) — roughly the few-shot baseline plus the same ~5-point margin used for the original (7B-era) 85% figure. Not independently re-grounded in fresh 3B-specific research the way the original figure was; see `reports/qlora_training.md` for the caveat
 - Error analysis breaks down performance by query complexity (simple SELECT, JOIN, subquery, aggregation)
 - The full pipeline is reproducible — running the provided scripts on the same dataset yields comparable results
 
