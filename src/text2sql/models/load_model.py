@@ -41,6 +41,30 @@ def load_base_model(max_seq_length: int):
     return model, tokenizer
 
 
+def load_finetuned_model(checkpoint_dir: str, max_seq_length: int):
+    """Load a saved LoRA adapter checkpoint (base model + adapter) for inference.
+
+    `checkpoint_dir` is a directory saved by train_qlora.py (`adapter_config.json`
+    + `adapter_model.safetensors`); its `base_model_name_or_path` points back at
+    QUANTIZED_MODEL_ID, so Unsloth quantizes the same base and merges the adapter
+    on load, same as it does for load_base_model.
+    """
+    import unsloth  # noqa: F401 -- must be imported before transformers/peft
+    from unsloth import FastLanguageModel
+
+    logger.info("Loading fine-tuned checkpoint %s (max_seq_length=%d)", checkpoint_dir, max_seq_length)
+    model, tokenizer = FastLanguageModel.from_pretrained(
+        model_name=checkpoint_dir,
+        max_seq_length=max_seq_length,
+        load_in_4bit=True,
+        dtype=None,
+    )
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    FastLanguageModel.for_inference(model)
+    return model, tokenizer
+
+
 def load_model_for_training(lora_cfg: dict, max_seq_length: int, load_in_4bit: bool = True):
     """Load the base model + tokenizer wrapped with a trainable LoRA adapter (QLoRA).
 

@@ -1,6 +1,13 @@
 # Core ML stack
 torch
 transformers
+# transformers 4.57.6 requires huggingface-hub<1.0; pinned explicitly (not just
+# left as a transitive resolution) because gradio's own cap on huggingface-hub
+# is inconsistent across releases -- 5.44.0-5.47.x declare <1.0, but 5.48.0+
+# relax it to <2.0 -- so a later `pip install -U gradio` alone (gradio not
+# reinstalled from this file) could otherwise re-pull huggingface-hub>=1.0 and
+# break `import transformers` outright, as happened once during development.
+huggingface-hub<1.0
 datasets
 peft
 accelerate
@@ -19,7 +26,10 @@ torchvision
 wandb
 
 # Demo
-gradio
+# gradio 6.x requires huggingface-hub>=1.16, incompatible with the
+# huggingface-hub<1.0 pin above -- see that comment. 5.44.0 is what the
+# demo (demo/app.py) was built and tested against.
+gradio<6,>=5.44.0
 
 # Config / utilities
 pyyaml

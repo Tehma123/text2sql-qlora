@@ -1,14 +1,20 @@
 # QLoRA Training
 
-Status: pipeline built, smoke-tested, and verified correct end-to-end on the
-real model/data/GPU -- **but the base model changed mid-project**. A real
-training run on the originally-chosen Qwen2.5-Coder-7B-Instruct ran for
-~4h before it became clear it would take ~59h total, not the ~14h estimated
-from a smoke test -- traced to VRAM/BAR1 pressure specific to running a 7B
-model this close to the 12GB limit (full incident below). The project has
-pivoted to **Qwen2.5-Coder-3B-Instruct**. The training run itself has not
-been (re-)executed yet; baseline evaluation against the new 3B base model is
-next, before another real training attempt.
+Status: **complete.** The real 3-epoch fine-tune on **Qwen2.5-Coder-3B-Instruct**
+finished, a dev-set comparison across all three epoch checkpoints selected
+checkpoint-536 (epoch 1; epochs 2-3 overfit), and the final `test.json`
+evaluation puts it at **exact_match 43.0% / execution_accuracy 71.9%**
+zero-shot -- clearly ahead of the zero-shot baseline (66.3%) but short of
+the few-shot baseline (74.3%). Combining fine-tuning with few-shot
+demonstrations at inference time (an experiment run afterward) closes that
+gap and then some: **exact_match 53.1% / execution_accuracy 76.2%**, beating
+both baselines individually, though still 3.8pt short of the ~80% target.
+See "Real 3-epoch training run" and "Post-tuning evaluation" below for the
+full trace, and "Final result" for the interpretation. This followed an
+earlier pivot: the originally-chosen Qwen2.5-Coder-7B-Instruct ran for ~4h
+before it became clear it would take ~59h total, not the ~14h estimated from
+a smoke test -- traced to VRAM/BAR1 pressure specific to running a 7B model
+this close to the 12GB limit (full incident below).
 
 ## Pivot: 7B -> 3B
 
@@ -164,6 +170,212 @@ the 3B tokenizer:
 ```
 
 No blockers remain before launching the real 3-epoch run.
+
+## Real 3-epoch training run
+
+Launched manually (`python scripts/train.py`, per the established pattern of
+the user launching multi-hour GPU-bound runs themselves). Reached all three
+epoch-boundary checkpoints:
+
+| checkpoint | epoch | train_loss (at that point) | eval_loss | wall-clock timestamp |
+|---|---|---|---|---|
+| checkpoint-536 | 1.0 | ~0.08 (logged range 0.077-0.086 near boundary) | 0.2635 | 2026-08-06 22:15 |
+| checkpoint-1072 | 2.0 | lower, not logged exactly | 0.2883 | 2026-08-07 01:38 |
+| checkpoint-1608 | 3.0 | **0.00467** (final, from `train_metrics.json`) | **0.3618** | 2026-08-07 10:46 |
+
+**Eval loss rises across all three epochs, and the rate of increase
+accelerates** (epoch 0->1: +0.019, epoch 1->2: +0.025, epoch 2->3: +0.073 --
+roughly 3x the per-epoch rate of the first two). Combined with train_loss
+bottoming out near zero by epoch 3 (the model has essentially memorized the
+training set's exact SQL strings), this is a clear overfitting signature by
+the third epoch -- see "Post-tuning evaluation" below for whether it actually
+costs execution_accuracy, which isn't guaranteed to move in lockstep with
+token-level loss on a task with many valid SQL phrasings for one answer.
+
+**A methodological caveat on run duration, checked directly rather than
+trusted from the trainer's own summary:** `train_metrics.json` reports
+`train_runtime: 8114.76s` (~2h15m) for the "full" run, which looks like great
+news -- far under the ~8h estimate -- but this number is misleading.
+Checkpoint directory timestamps show large gaps between epoch boundaries
+(22:15 -> 01:38 = 3h22m, then 01:38 -> 10:46 = **9h08m**) that don't match
+sustained training at the observed ~14-18s/step pace (536 steps at that pace
+is ~2-2.5h, not 3.3h or 9.1h). The likely explanation: the run was paused and
+resumed at least once, consistent with the plan discussed mid-run to
+possibly stop after epoch 1. When `trainer.train(resume_from_checkpoint=...)`
+is invoked as a fresh process, `train_runtime` in the returned metrics
+reflects only that invocation's own active wall-clock time, not the
+cumulative time across separate invocations -- and 8114.76s lines up closely
+with one epoch's worth of steps at the live-observed rate (536 x ~15.1s/step
+approx 8093s), consistent with the final invocation covering only the
+last resumed segment. **The reliable throughput numbers remain the ones
+measured directly during live epoch 1** (~14-18s/step, matching the
+pre-run smoke-test estimate of ~17.5s/step) -- `train_metrics.json`'s
+headline `train_runtime` should not be read as "the run only took 2.25h."
+Total active GPU compute across all 3 epochs is better estimated at roughly
+**~7-8h**, matching the original projection; the ~14h46m of wall-clock
+calendar time it actually spanned includes real pauses, not just training.
+
+## Post-tuning evaluation
+
+New pipeline, mirroring `baseline_eval.py`'s structure rather than
+duplicating it: `text2sql.models.load_model.load_finetuned_model` loads a
+saved checkpoint directory (adapter_config.json + adapter_model.safetensors)
+via Unsloth's `FastLanguageModel.from_pretrained(model_name=checkpoint_dir,
+...)`, which reads `base_model_name_or_path` from the adapter config and
+quantizes+merges automatically -- same pattern as `load_base_model`.
+`text2sql.eval.evaluate.evaluate_checkpoint` then calls
+`baseline_eval.run_baseline(mode="zero_shot", ...)` directly against that
+model: the fine-tuned model was trained on exactly the `build_messages`
+format (system + user turn, no few-shot demos -- see
+`prompts/templates.build_training_messages`), so "zero_shot" mode is the
+correct comparison, not a separate code path. `scripts/evaluate.py` is the
+CLI entry point (`--checkpoints ... --split {dev,test} --limit N`).
+
+**Methodology, decided before running anything:** checkpoint *selection*
+(which epoch to ship) runs against `dev.json` -- the same split `eval_loss`
+was already computed on during training -- so the choice isn't biased by
+peeking at `test.json`. `test.json` gets evaluated exactly once, on
+whichever single checkpoint wins the dev comparison, since that's what's
+actually comparable to the baselines in `reports/baseline_evaluation.md`
+(66.3%/74.3% execution_accuracy) and the ~80% target.
+
+**Checkpoint comparison, 300-example dev slice** (`results/finetuned/checkpoint-*_dev.json`):
+
+| checkpoint | epoch | exact_match | execution_accuracy |
+|---|---|---|---|
+| checkpoint-536 | 1 | 0.380 | **0.727** |
+| checkpoint-1072 | 2 | 0.417 | 0.710 |
+| checkpoint-1608 | 3 | 0.403 | 0.653 |
+
+**Epoch 3 is out**: 5.7-7.4 points below epochs 1 and 2 on execution_accuracy,
+directly confirming the eval_loss-predicted overfitting -- the accuracy
+metric and the loss metric agree here.
+
+**Epoch 1 vs. epoch 2, resolved with the full 1,034-example dev set:**
+checkpoint-536 evaluated at execution_accuracy **0.7292** (exact_match
+0.4449) on the full dev set -- landing right where its 300-example estimate
+predicted (0.727), confirming that estimate wasn't noise. checkpoint-1072
+was only measured at n=300 (0.710); given checkpoint-536's stability at
+4x the sample size and its additional advantage of being the
+lowest-overfitting-risk checkpoint (lowest eval_loss, fewest epochs),
+**checkpoint-536 (epoch 1) was selected** without spending the ~35min to
+also re-run checkpoint-1072 at full size -- the practical case for epoch 1
+was strong enough without it.
+
+## Final result
+
+**checkpoint-536, full `test.json` (2,147 examples, one-shot evaluation as
+planned):**
+
+| | exact_match | execution_accuracy |
+|---|---|---|
+| Zero-shot (3B base, no tuning) | 26.9% | 66.3% |
+| Few-shot (3B base, 5-shot) | 50.9% | 74.3% |
+| **Fine-tuned (checkpoint-536)** | **43.0%** | **71.9%** |
+| Target | -- | ~80% |
+
+**Beats zero-shot clearly** (+5.6pt execution_accuracy, +16.1pt exact_match)
+-- fine-tuning demonstrably helps over the untuned model. **Falls short of
+both few-shot (-2.4pt execution_accuracy, -7.9pt exact_match) and the ~80%
+target (-8.1pt).** This isn't a broken pipeline; every step from data
+masking through checkpoint selection was verified directly along the way.
+It's a real result that the original target didn't anticipate.
+
+**Why fine-tuning didn't beat few-shot, most likely explanation:** the
+few-shot baseline is shown 5 worked (question, SQL) examples *from the same
+unseen test database* at inference time -- a live demonstration of that
+specific schema's naming conventions and query style. The fine-tuned model
+is evaluated zero-shot (matching its training format exactly), so at
+inference time on a brand-new database it gets no examples for that specific
+schema at all -- it has to generalize purely from patterns learned across
+the 145 *different* training databases. This lines up with the baseline
+report's own finding that few-shot's main effect looks like teaching
+formatting conventions via direct demonstration rather than deeper schema
+reasoning -- exactly the kind of signal a live in-context example provides
+that a zero-shot-evaluated fine-tuned model structurally can't access.
+Secondary contributors: checkpoint-536 is only epoch 1 (selected for lowest
+overfitting risk, not because it was the most converged), and 8,575 training
+examples across 145 databases is a modest amount of data for learning fully
+general cross-database schema-linking.
+
+**What this means for the ~80% target:** it was calibrated as "~5-6 points
+over the few-shot baseline," implicitly assuming fine-tuning strictly
+dominates few-shot (i.e. that fine-tuning is a superset of what few-shot
+achieves). This result suggests that assumption doesn't hold -- few-shot and
+fine-tuning appear to provide different, not strictly nested, kinds of
+signal (per-database live demonstration vs. cross-database pattern
+learning). The target wasn't miscalibrated due to an error; the underlying
+assumption itself doesn't hold up against real data.
+
+### Follow-on experiment: fine-tuning + few-shot combined
+
+Since nothing about fine-tuning precludes also using in-context examples at
+inference time, ran checkpoint-536 with the same 5-shot demonstrations the
+few-shot baseline gets (`scripts/evaluate.py --mode few_shot`, reusing
+`baseline_eval.run_baseline`'s existing few-shot code path and
+`_sample_few_shot_pool`, sampled fresh from each eval split). A quick
+300-example dev check showed a real improvement (execution_accuracy 0.727 ->
+0.757, exact_match 0.380 -> 0.457) before committing to the full run.
+
+**Full `test.json` result (2,147 examples):**
+
+| | exact_match | execution_accuracy |
+|---|---|---|
+| Zero-shot (3B base) | 26.9% | 66.3% |
+| Few-shot (3B base, 5-shot) | 50.9% | 74.3% |
+| Fine-tuned, zero-shot | 43.0% | 71.9% |
+| **Fine-tuned + few-shot** | **53.1%** | **76.2%** |
+| Target | -- | ~80% |
+
+**Beats both baselines individually**: +9.9pt execution_accuracy /
++26.2pt exact_match over zero-shot, +1.9pt / +2.2pt over few-shot, +4.3pt /
++10.1pt over fine-tuned alone. This directly confirms the hypothesis above:
+fine-tuning's cross-database pattern learning and few-shot's live
+per-schema demonstration are complementary signals, not redundant ones --
+stacking them adds up rather than one subsuming the other. Still 3.8pt
+short of the ~80% target, but this is the strongest result produced and the
+one that should anchor the final write-up.
+
+## Error analysis
+
+New module, `src/text2sql/eval/error_analysis.py` + `scripts/error_analysis.py`,
+works on any `run_baseline`-shaped results file (uniform across baselines
+and fine-tuned checkpoints). `categorize_query()` classifies each gold SQL
+by keyword heuristics matching Spider's own established complexity
+taxonomy -- `JOIN` present, more than one `SELECT` (subquery), any of
+`COUNT/SUM/AVG/MIN/MAX`/`GROUP BY` (aggregation), or none of the above
+("select" = simple baseline). Not mutually exclusive except "select".
+
+**execution_accuracy by category, all 4 conditions, full `test.json`:**
+
+| category | n | zero-shot | few-shot | fine-tuned | fine-tuned+few-shot |
+|---|---|---|---|---|---|
+| select (simple) | 526 | 76.4% | **90.5%** | 86.7% | 88.6% |
+| **join** | **862** | 56.8% | 61.0% | 59.2% | **67.1%** |
+| subquery | 346 | 58.4% | 67.1% | 66.2% | 66.5% |
+| aggregation | 1054 | 65.2% | 71.5% | 69.3% | **74.1%** |
+
+Two findings:
+
+1. **Join queries are the weak point across every condition** -- lowest
+   execution_accuracy of all four categories in every single row, and the
+   largest category by count (862/2,147 = 40% of the test set), so it's
+   dragging the overall average down more than any other category simply by
+   weight. This is the highest-value target if pushing accuracy further
+   later (see "Follow-on experiment" note above about diminishing returns
+   elsewhere).
+2. **The combined approach's improvement is concentrated exactly where it's
+   needed, not spread evenly.** On "select" (already near-ceiling at 90.5%
+   for few-shot alone), combining doesn't help (88.6%, within noise of
+   few-shot alone, arguably a small regression). On subquery, combining is
+   flat vs. few-shot alone (66.5% vs 67.1%). But on **join** -- the hardest,
+   largest category -- combining beats few-shot alone by **+6.1pt** (61.0%
+   -> 67.1%), and on aggregation by +2.6pt (71.5% -> 74.1%). The two signals
+   complement each other specifically on the hard, high-value cases, not on
+   the easy ones where either alone was already sufficient -- a more precise
+   version of the "complementary, not redundant" finding above.
+
+Full breakdown: `results/error_analysis/breakdown.json`.
 
 ## Bugs found while wiring this up
 
@@ -358,8 +570,32 @@ placeholder extrapolation.
    above: 4 examples decoded, all matched gold SQL exactly.
 4. ~~Re-measure real training throughput on 3B~~ -- done: ~17.5s/step,
    ~8h full-run estimate, no accelerating-slowdown pattern observed.
-5. Run `python scripts/train.py` for the real 3-epoch fine-tune -- no
-   remaining blockers.
-6. Once it produces `checkpoints/final`, wire up post-tuning evaluation
-   (`scripts/evaluate.py`, currently an empty placeholder) against the same
-   `test.json` split, for an apples-to-apples comparison.
+5. ~~Run `python scripts/train.py` for the real 3-epoch fine-tune~~ -- done:
+   `checkpoints/checkpoint-{536,1072,1608}` + `checkpoints/final`.
+6. ~~Wire up post-tuning evaluation (`scripts/evaluate.py`)~~ -- done, see
+   above.
+7. ~~Resolve checkpoint-536 vs. checkpoint-1072 on the full dev set~~ --
+   done: checkpoint-536 selected (0.7292 execution_accuracy at n=1034,
+   stable vs. its own n=300 estimate; also lowest-overfitting-risk option).
+8. ~~Run the winning checkpoint once against `test.json`~~ -- done: exact_match
+   43.0%, execution_accuracy 71.9%. See "Final result" above.
+9. ~~Follow-on experiment: evaluate checkpoint-536 with few-shot examples
+   added at inference time~~ -- done: exact_match 53.1%, execution_accuracy
+   76.2%, beats both baselines. See "Follow-on experiment" above.
+10. ~~Error analysis~~ -- done: join queries are the weak point across every
+    condition (largest category too); combining fine-tuning + few-shot
+    helps most exactly there (+6.1pt) and on aggregation (+2.6pt), not on
+    the already-easy select category. See "Error analysis" above.
+11. ~~Gradio demo~~ -- done: `demo/app.py` already had a full UI shell built
+    (curated 6-database picker, schema + example questions, live SQL
+    execution) with a mock gold-lookup standing in for the model; swapped
+    `predict_sql()` for real generation via `checkpoint-536` + few-shot
+    demos from the selected database (the 76.2% combination). Verified via
+    `gradio_client` against the live server, not just the underlying
+    functions: `/on_db_change` and `/on_generate` both confirmed working
+    end-to-end, including a hand-typed question outside the example set
+    generating and executing correctly.
+12. Technical write-up (`reports/technical_report.md`, currently a section
+    outline with no content) -- pull together dataset, baselines,
+    fine-tuning, results, and error analysis from the working reports into
+    one polished document.

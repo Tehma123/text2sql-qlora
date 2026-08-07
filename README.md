@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](#license)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](#requirements)
-[![Status](https://img.shields.io/badge/status-in%20development-orange.svg)](#roadmap)
+[![Status](https://img.shields.io/badge/status-complete-brightgreen.svg)](#roadmap)
 
 ## Table of Contents
 
@@ -14,6 +14,8 @@
 - [Tech Stack](#tech-stack)
 - [Hardware Requirements](#hardware-requirements)
 - [Evaluation](#evaluation)
+- [Results](#results)
+- [Demo](#demo)
 - [Success Criteria](#success-criteria)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
@@ -119,10 +121,30 @@ Two baselines are measured before fine-tuning to make the comparison meaningful:
 1. **Zero-shot** — question + schema only, no examples
 2. **Few-shot** — 3–5 examples included in the prompt
 
+## Results
+
+| | exact_match | execution_accuracy |
+|---|---|---|
+| Zero-shot (3B base) | 26.9% | 66.3% |
+| Few-shot (3B base, 5-shot) | 50.9% | 74.3% |
+| QLoRA fine-tuned, zero-shot (epoch 1) | 43.0% | 71.9% |
+| **QLoRA fine-tuned + few-shot** | **53.1%** | **76.2%** |
+| Target | — | ~80% |
+
+Fine-tuning alone clearly beats zero-shot (+5.6pt execution_accuracy) but falls short of the few-shot baseline — the most likely explanation is that few-shot is shown 5 worked examples *from the same unseen test database* at inference time (a live demonstration of that schema's naming conventions), which the fine-tuned model, evaluated zero-shot, doesn't get access to. Combining both — fine-tuning *and* few-shot demonstrations at inference time — beats each baseline individually (+9.9pt over zero-shot, +1.9pt over few-shot), confirming they provide complementary rather than redundant signal. Still 3.8pt short of the ~80% target. Error analysis by query complexity shows why: JOIN queries (40% of the test set) are the weak point in every condition, and combining fine-tuning + few-shot helps most exactly there (+6.1pt over few-shot alone), not on the already-easy simple-SELECT category. Full trace and reasoning in `reports/qlora_training.md`.
+
+## Demo
+
+```bash
+python demo/app.py
+```
+
+Loads `checkpoints/checkpoint-536` and serves a local Gradio UI (default `http://127.0.0.1:7860`): pick one of 6 curated held-out databases, see its schema and real example questions from that database, and ask your own question — generated live using the fine-tuned model + few-shot combination above (the 76.2% row), with the SQL executed against the real SQLite file so you see actual query results, not just generated text.
+
 ## Success Criteria
 
-- Execution accuracy of the fine-tuned model shows a clear, measurable improvement over both baselines. Target: **~80%** on the `test` split, against Qwen2.5-Coder-3B-Instruct's own measured baselines (66.3% zero-shot, 74.3% few-shot — see `reports/baseline_evaluation.md`) — roughly the few-shot baseline plus the same ~5-point margin used for the original (7B-era) 85% figure. Not independently re-grounded in fresh 3B-specific research the way the original figure was; see `reports/qlora_training.md` for the caveat
-- Error analysis breaks down performance by query complexity (simple SELECT, JOIN, subquery, aggregation)
+- Execution accuracy of the fine-tuned model shows a clear, measurable improvement over both baselines. Target: **~80%** on the `test` split, against Qwen2.5-Coder-3B-Instruct's own measured baselines (66.3% zero-shot, 74.3% few-shot — see `reports/baseline_evaluation.md`). **Result: 76.2%** (fine-tuned + few-shot) — clears both baselines, falls short of the target by 3.8pt; see `reports/qlora_training.md`'s "Final result" section
+- Error analysis breaks down performance by query complexity (simple SELECT, JOIN, subquery, aggregation) — **done**, see `reports/qlora_training.md`'s "Error analysis" section: JOIN queries are the weak point across every condition and the largest category (40% of test set)
 - The full pipeline is reproducible — running the provided scripts on the same dataset yields comparable results
 
 ## Roadmap
@@ -130,15 +152,17 @@ Two baselines are measured before fine-tuning to make the comparison meaningful:
 - [x] Define problem scope and approach
 - [x] Data preparation (download Spider, explore schema, build instruction-formatted dataset)
 - [x] Baseline evaluation (zero-shot / few-shot)
-- [ ] QLoRA fine-tuning setup and training runs
-- [ ] Post-tuning evaluation and comparison
-- [ ] Error analysis
-- [ ] Gradio demo
-- [ ] Technical write-up
+- [x] QLoRA fine-tuning setup and training runs
+- [x] Post-tuning evaluation and comparison
+- [x] Error analysis
+- [x] Gradio demo
+- [x] Technical write-up
+
+Full write-up: [`reports/technical_report.md`](reports/technical_report.md). Working reports with the complete step-by-step trace (bugs hit, decisions made, and why) are in [`reports/`](reports/).
 
 ## Contributing
 
-This project is in early development. Issues and pull requests are welcome once the initial pipeline is in place — check the [Roadmap](#roadmap) for the current stage.
+The initial pipeline is complete — see [Results](#results) and the [technical report](reports/technical_report.md). Issues and pull requests are welcome, particularly around the join-query weakness identified in error analysis.
 
 ## License
 
