@@ -44,3 +44,6 @@ Thumbs.db
 .vscode/
 .idea/
 *.log
+
+# Vietnamese document translations (local reference only, not published)
+*.vi.md

@@ -595,7 +595,9 @@ placeholder extrapolation.
     functions: `/on_db_change` and `/on_generate` both confirmed working
     end-to-end, including a hand-typed question outside the example set
     generating and executing correctly.
-12. Technical write-up (`reports/technical_report.md`, currently a section
-    outline with no content) -- pull together dataset, baselines,
-    fine-tuning, results, and error analysis from the working reports into
-    one polished document.
+12. ~~Technical write-up~~ -- done: `reports/technical_report.md` pulls
+    together dataset, baselines, fine-tuning, results, and error analysis
+    into one polished document.
+
+All roadmap items complete. Project closed out -- see README's Roadmap
+section and `reports/technical_report.md` for the final write-up.
