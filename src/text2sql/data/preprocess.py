@@ -73,8 +73,8 @@ def build_dataset(config: dict[str, Any], base_model: str) -> dict[str, int]:
     processed_dir.mkdir(parents=True, exist_ok=True)
     max_seq_length = config["max_seq_length"]
 
-    trainval_schema_index = build_schema_index(raw_dir / "tables.json")
-    test_schema_index = build_schema_index(raw_dir / "test_tables.json")
+    trainval_schema_index = build_schema_index(raw_dir / "tables.json", raw_dir, "database")
+    test_schema_index = build_schema_index(raw_dir / "test_tables.json", raw_dir, "test_database")
 
     train_raw = _load_json(raw_dir / "train_spider.json") + _load_json(raw_dir / "train_others.json")
     dev_raw = _load_json(raw_dir / "dev.json")

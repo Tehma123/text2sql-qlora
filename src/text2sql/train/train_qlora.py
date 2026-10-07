@@ -98,6 +98,7 @@ def run(
     # secret or not -- replaces eos_token=None with the literal string
     # "<EOS_TOKEN>", which then fails the vocabulary lookup. Reproduced and
     # confirmed by import order alone before landing on this fix.
+    from transformers import EarlyStoppingCallback
     from trl import SFTConfig, SFTTrainer
     from unsloth.chat_templates import train_on_responses_only
 
@@ -127,6 +128,7 @@ def run(
 
     output_dir = resolve_path(train_config["output_dir"])
     report_to = _resolve_report_to(train_config)
+    early_stopping_patience = training_cfg.get("early_stopping_patience")
 
     sft_config = SFTConfig(
         output_dir=str(output_dir),
@@ -141,7 +143,13 @@ def run(
         warmup_ratio=training_cfg["warmup_ratio"],
         logging_steps=training_cfg["logging_steps"],
         save_strategy=training_cfg["save_strategy"],
+        save_steps=training_cfg.get("save_steps", 500),
         eval_strategy=training_cfg.get("eval_strategy", "epoch"),
+        eval_steps=training_cfg.get("eval_steps"),
+        # EarlyStoppingCallback requires these; final/ then holds the lowest-eval_loss checkpoint
+        load_best_model_at_end=early_stopping_patience is not None,
+        metric_for_best_model="eval_loss",
+        greater_is_better=False,
         per_device_eval_batch_size=training_cfg["per_device_train_batch_size"],
         optim=training_cfg.get("optim", "adamw_8bit"),
         weight_decay=training_cfg.get("weight_decay", 0.01),
@@ -157,6 +165,7 @@ def run(
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         args=sft_config,
+        callbacks=[EarlyStoppingCallback(early_stopping_patience)] if early_stopping_patience is not None else None,
     )
     trainer = train_on_responses_only(
         trainer,
@@ -180,6 +189,9 @@ def run(
     logger.info("Saved final LoRA adapter to %s", final_dir)
 
     metrics = dict(train_result.metrics)
+    metrics["global_step"] = trainer.state.global_step
+    metrics["best_model_checkpoint"] = trainer.state.best_model_checkpoint
+    metrics["best_eval_loss"] = trainer.state.best_metric
     metrics_path = output_dir / "train_metrics.json"
     with open(metrics_path, "w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2)

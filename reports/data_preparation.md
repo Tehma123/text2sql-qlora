@@ -59,10 +59,24 @@ casing, types, primary keys, foreign keys as `FOREIGN KEY ... REFERENCES ...`)
 by `src/text2sql/data/schema_utils.py`. DDL was chosen over a flatter
 "table: col1, col2" listing because it's closer to what the base model has
 seen during pretraining and keeps primary/foreign-key relationships explicit,
-which Spider questions frequently depend on (joins). Checked: no database in
-Spider has a composite (multi-column) primary key, so each PK is safely
-rendered as an inline column constraint rather than needing a separate
-table-level `PRIMARY KEY (a, b)` clause.
+which Spider questions frequently depend on (joins).
+
+**Correction (2026-10-07):** this section originally said no Spider database
+has a composite primary key, so every PK could be rendered inline. That was
+checked against `tables.json` only, and `tables.json` turns out to keep just
+the *first* column of each composite key. Against the real SQLite files
+(`PRAGMA table_info`), 132 of 876 tables in `tables.json` and 161 of 1,056 in
+`test_tables.json` have a composite key -- e.g. `college_2.takes` is keyed on
+`(ID, course_id, sec_id, semester, year)` but was rendered as
+`"ID" TEXT PRIMARY KEY`, telling the model a non-unique column is unique.
+Every other table matched (649 single-column keys, 95 tables with no key).
+That reached 4,554/8,575 train (53%), 387/1,034 dev and 1,091/2,147 test
+examples. `schema_utils.py` now reads primary keys from the SQLite file and
+renders a composite key as a table-level `PRIMARY KEY (a, b)` clause;
+single-column keys are still inline, so those tables' DDL is unchanged.
+Foreign keys were checked the same way and match (all 792 in `tables.json`
+exist in SQLite). The first training run (`checkpoints/checkpoint-*`) used
+the old prompts, kept in `data/processed/v1_partial_pk/`.
 
 ## Instruction format
 

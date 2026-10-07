@@ -8,7 +8,10 @@
 # checkpointing and slowing training to ~5x the originally-measured rate.
 # See reports/qlora_training.md for the full incident writeup.
 base_model: Qwen/Qwen2.5-Coder-3B-Instruct
-output_dir: checkpoints
+# v2: retrain after the composite-primary-key schema fix (see
+# src/text2sql/data/schema_utils.py). The first run's checkpoints stay in
+# checkpoints/ itself (checkpoint-536 is what demo/app.py and the reports use).
+output_dir: checkpoints/v2
 
 quantization:
   load_in_4bit: true
@@ -32,7 +35,15 @@ training:
   # proportional miss would be very unlikely to matter.
   per_device_train_batch_size: 2
   gradient_accumulation_steps: 8
-  num_train_epochs: 3
+  # Was 3. In the first run eval_loss was already rising by step 1072 and
+  # epoch 3 cost 7.4pt dev execution_accuracy (significant; epoch 2 vs. 1
+  # was not), so nothing past 2 epochs (1,072 steps) helps. The bigger
+  # effect is on the cosine LR schedule, which spans the whole run: at step
+  # 536 LR is now ~1.05e-4 instead of ~1.56e-4, and it reaches 0 at 1072
+  # instead of still being ~5.3e-5 there -- the low-LR end of training now
+  # falls inside the window where the best checkpoint was found, instead of
+  # every candidate being a high-LR mid-run snapshot.
+  num_train_epochs: 2
   # PyYAML only parses scientific notation as a float when the mantissa has a
   # decimal point ("2e-4" loads as the *string* "2e-4", not 0.0002) -- keep
   # the ".0" here or it'll silently break anything that expects a float.
@@ -41,8 +52,22 @@ training:
   warmup_ratio: 0.03
   weight_decay: 0.01
   logging_steps: 10
-  save_strategy: epoch
-  eval_strategy: epoch
+  # Was per-epoch (steps 536/1072/1608): eval_loss was already lowest at the
+  # first of those three points (0.2635 -> 0.2883 -> 0.3618), so its true
+  # minimum could be anywhere before step 1072, and the per-epoch grid can't
+  # say where. Every 100 steps puts 5 evals before the old epoch-1 checkpoint;
+  # one eval on the full dev set takes ~200s, about 13% on top of 100 steps
+  # of training (~15s/step) vs. ~26% at every 50.
+  eval_strategy: steps
+  eval_steps: 100
+  save_strategy: steps
+  save_steps: 100
+  # Stop after this many consecutive evals without a new best eval_loss
+  # (400 steps here), and save the best-eval_loss checkpoint as final/.
+  # eval_loss is only a proxy for execution_accuracy (epoch 2 had higher eval_loss than epoch 1 but
+  # statistically the same accuracy), so the shipped checkpoint should still
+  # be picked by scripts/evaluate.py on dev among the ones around the minimum.
+  early_stopping_patience: 4
   # 8-bit optimizer states (bitsandbytes) -- LoRA-only trainable params make
   # this a small saving in absolute terms, but it's free extra headroom on
   # top of the margin measured in vram_check.py, and is Unsloth's own
