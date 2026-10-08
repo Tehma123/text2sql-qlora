@@ -127,11 +127,15 @@ Two baselines are measured before fine-tuning to make the comparison meaningful:
 |---|---|---|
 | Zero-shot (3B base) | 26.9% | 66.3% |
 | Few-shot (3B base, 5-shot) | 50.9% | 74.3% |
-| QLoRA fine-tuned, zero-shot (epoch 1) | 43.0% | 71.9% |
-| **QLoRA fine-tuned + few-shot** | **53.1%** | **76.2%** |
+| QLoRA fine-tuned v1, zero-shot | 43.0% | 71.9% |
+| QLoRA fine-tuned v1 + few-shot | 53.1% | 76.2% |
+| QLoRA fine-tuned v2, zero-shot | 44.4% | 71.7% |
+| **QLoRA fine-tuned v2 + few-shot** | **54.0%** | **77.4%** |
 | Target | — | ~80% |
 
-Fine-tuning alone clearly beats zero-shot (+5.6pt execution_accuracy) but falls short of the few-shot baseline — the most likely explanation is that few-shot is shown 5 worked examples *from the same unseen test database* at inference time (a live demonstration of that schema's naming conventions), which the fine-tuned model, evaluated zero-shot, doesn't get access to. Combining both — fine-tuning *and* few-shot demonstrations at inference time — beats each baseline individually (+9.9pt over zero-shot, +1.9pt over few-shot), confirming they provide complementary rather than redundant signal. Still 3.8pt short of the ~80% target. Error analysis by query complexity shows why: JOIN queries (40% of the test set) are the weak point in every condition, and combining fine-tuning + few-shot helps most exactly there (+6.1pt over few-shot alone), not on the already-easy simple-SELECT category. Full trace and reasoning in `reports/qlora_training.md`.
+Fine-tuning alone clearly beats zero-shot (v2: +5.4pt execution_accuracy) but falls short of the few-shot baseline — the most likely explanation is that few-shot is shown 5 worked examples *from the same unseen test database* at inference time (a live demonstration of that schema's naming conventions), which the fine-tuned model, evaluated zero-shot, doesn't get access to. Combining both — fine-tuning *and* few-shot demonstrations at inference time — beats each baseline individually (v2: +11.1pt over zero-shot, +3.1pt over few-shot), confirming they provide complementary rather than redundant signal. Still 2.6pt short of the ~80% target. Error analysis by query complexity shows why: JOIN queries (40% of the test set) are the weak point in every condition, and combining fine-tuning + few-shot helps most exactly there (v1: +6.1pt over few-shot alone), not on the already-easy simple-SELECT category.
+
+**v1 vs. v2:** v2 retrains on schema prompts with corrected composite primary keys (Spider's `tables.json` keeps only a composite key's first column) and selects its checkpoint by dev execution accuracy at 100-step resolution instead of once per epoch. It is not significantly better than v1 (zero-shot 71.7% vs. 71.9%; with few-shot 77.4% vs. 76.2%, p=0.06), but it is the best measured result. The baselines were measured before the primary-key fix and haven't been re-run on the corrected prompts yet. Full trace and reasoning in `reports/qlora_training.md`.
 
 ## Demo
 
@@ -139,11 +143,11 @@ Fine-tuning alone clearly beats zero-shot (+5.6pt execution_accuracy) but falls 
 python demo/app.py
 ```
 
-Loads `checkpoints/checkpoint-536` and serves a local Gradio UI (default `http://127.0.0.1:7860`): pick one of 6 curated held-out databases, see its schema and real example questions from that database, and ask your own question — generated live using the fine-tuned model + few-shot combination above (the 76.2% row), with the SQL executed against the real SQLite file so you see actual query results, not just generated text.
+Loads `checkpoints/v2/checkpoint-600` and serves a local Gradio UI (default `http://127.0.0.1:7860`): pick one of 6 curated held-out databases, see its schema and real example questions from that database, and ask your own question — generated live using the fine-tuned model + few-shot combination above (the 77.4% row), with the SQL executed against the real SQLite file so you see actual query results, not just generated text.
 
 ## Success Criteria
 
-- Execution accuracy of the fine-tuned model shows a clear, measurable improvement over both baselines. Target: **~80%** on the `test` split, against Qwen2.5-Coder-3B-Instruct's own measured baselines (66.3% zero-shot, 74.3% few-shot — see `reports/baseline_evaluation.md`). **Result: 76.2%** (fine-tuned + few-shot) — clears both baselines, falls short of the target by 3.8pt; see `reports/qlora_training.md`'s "Final result" section
+- Execution accuracy of the fine-tuned model shows a clear, measurable improvement over both baselines. Target: **~80%** on the `test` split, against Qwen2.5-Coder-3B-Instruct's own measured baselines (66.3% zero-shot, 74.3% few-shot — see `reports/baseline_evaluation.md`). **Result: 77.4%** (v2 fine-tuned + few-shot) — clears both baselines, falls short of the target by 2.6pt; see the v2 section of `reports/qlora_training.md`
 - Error analysis breaks down performance by query complexity (simple SELECT, JOIN, subquery, aggregation) — **done**, see `reports/qlora_training.md`'s "Error analysis" section: JOIN queries are the weak point across every condition and the largest category (40% of test set)
 - The full pipeline is reproducible — running the provided scripts on the same dataset yields comparable results
 
@@ -157,6 +161,8 @@ Loads `checkpoints/checkpoint-536` and serves a local Gradio UI (default `http:/
 - [x] Error analysis
 - [x] Gradio demo
 - [x] Technical write-up
+- [x] v2: fix composite primary keys in schema prompts, retrain, select the checkpoint by dev execution accuracy
+- [ ] Re-run both baselines on the corrected schema prompts
 
 Full write-up: [`reports/technical_report.md`](reports/technical_report.md). Working reports with the complete step-by-step trace (bugs hit, decisions made, and why) are in [`reports/`](reports/).
 

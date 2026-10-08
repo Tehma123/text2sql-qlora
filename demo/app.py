@@ -1,10 +1,11 @@
 """Gradio demo for Text2SQL-Tune.
 
-Real model, not a mock: loads `checkpoints/checkpoint-536` (the epoch
-selected in `reports/qlora_training.md`) and generates SQL live, combined
-with few-shot demonstrations from the same database -- the combination that
-measured best (execution_accuracy 76.2%, vs. 71.9% fine-tuned alone -- see
-"Follow-on experiment" in that report). Uses the same generation code as
+Real model, not a mock: loads `checkpoints/v2/checkpoint-600` (the v2
+checkpoint selected in `reports/qlora_training.md`) and generates SQL live,
+combined with few-shot demonstrations from the same database -- the
+combination that measured best (execution_accuracy 77.4%, vs. 71.7%
+fine-tuned alone -- see "v2: composite-primary-key fix and retrain" in that
+report). Uses the same generation code as
 evaluation (`text2sql.eval.baseline_eval.generate_sql`,
 `build_few_shot_messages`), so the demo's behavior matches what was actually
 measured rather than a separate reimplementation.
@@ -44,7 +45,7 @@ RAW_DIR = resolve_path(DATA_CONFIG["raw_dir"])
 TEST_FILE = resolve_path(DATA_CONFIG["test_file"])
 MAX_SEQ_LENGTH = DATA_CONFIG["max_seq_length"]
 NUM_FEW_SHOT = EVAL_CONFIG.get("baselines", {}).get("few_shot", {}).get("num_examples", 5)
-CHECKPOINT_DIR = resolve_path("checkpoints/checkpoint-536")
+CHECKPOINT_DIR = resolve_path("checkpoints/v2/checkpoint-600")
 
 EXAMPLES_PER_DB = 5
 QUERY_TIMEOUT = 5.0
@@ -114,7 +115,7 @@ def _few_shot_demos(db_id: str, question: str) -> list[dict[str, str]]:
 
 def predict_sql(db_id: str, question: str) -> tuple[str, str]:
     """Real generation: fine-tuned model + few-shot demos from this database
-    (the combination measured at 76.2% execution_accuracy -- see
+    (the combination measured at 77.4% execution_accuracy -- see
     reports/qlora_training.md). Returns (sql, status_note); `sql` is empty if
     nothing could be produced."""
     if not question or not question.strip():
@@ -163,10 +164,10 @@ def _load_metrics_table() -> str:
             metrics = json.load(f)["metrics"]
         lines.append(f"| {label} | {metrics['exact_match']:.1%} | {metrics['execution_accuracy']:.1%} |")
 
-    finetuned_dir = PROJECT_ROOT / "results" / "finetuned"
+    finetuned_dir = PROJECT_ROOT / "results" / "finetuned" / "v2"
     for filename, label, bold in (
-        ("checkpoint-536_test.json", "Fine-tuned, zero-shot", False),
-        ("checkpoint-536_test_few_shot.json", "**Fine-tuned + few-shot (this demo)**", True),
+        ("checkpoint-600_test_zero_shot.json", "Fine-tuned, zero-shot", False),
+        ("checkpoint-600_test_few_shot.json", "**Fine-tuned + few-shot (this demo)**", True),
     ):
         path = finetuned_dir / filename
         if not path.exists():
@@ -177,6 +178,11 @@ def _load_metrics_table() -> str:
         if bold:
             em, ex = f"**{em}**", f"**{ex}**"
         lines.append(f"| {label} | {em} | {ex} |")
+    lines.append("")
+    lines.append(
+        "The two base-model rows were measured before the composite-primary-key fix to the schema "
+        "prompts; the fine-tuned rows use the corrected prompts."
+    )
     return "\n".join(lines)
 
 
@@ -188,7 +194,7 @@ Qwen2.5-Coder-3B, run against the real SQLite database so you see actual results
 """
 
 INFO_BANNER = """\
-Every query below is generated live by the fine-tuned model (`checkpoints/checkpoint-536`), combined with a \
+Every query below is generated live by the fine-tuned model (`checkpoints/v2/checkpoint-600`), combined with a \
 few worked examples from the selected database as context -- the combination that measured best during \
 evaluation (see the table below). SQL execution is real: every query actually runs against the corresponding \
 database file. These databases are drawn from the 40-database held-out test split -- none of them were seen \

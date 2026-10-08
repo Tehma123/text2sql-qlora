@@ -16,14 +16,15 @@ before it became clear it would take ~59h total, not the ~14h estimated from
 a smoke test -- traced to VRAM/BAR1 pressure specific to running a 7B model
 this close to the 12GB limit (full incident below).
 
-**v2 retrain (in progress):** after the above was closed out, the prompt
-schemas turned out to carry wrong primary keys for composite-keyed tables,
-and the per-epoch eval grid turned out too coarse to locate the best
-checkpoint. A retrain on corrected prompts with step-level evaluation picked
-**checkpoint-600 at 76.4% dev execution_accuracy** (vs. 73.4% for v1's
-checkpoint-536 on the same prompts, p=0.004). The test set hasn't been run
-yet, so every other number in this report still describes v1. See "v2:
-composite-primary-key fix and retrain" below.
+**v2 retrain:** after the above was closed out, the prompt schemas turned
+out to carry wrong primary keys for composite-keyed tables, and the
+per-epoch eval grid turned out too coarse to locate the best checkpoint. A
+retrain on corrected prompts with step-level evaluation picked
+checkpoint-600 on dev. On `test.json` it reaches **execution_accuracy 77.4%
+fine-tuned + few-shot** (v1: 76.2%) and **71.7% zero-shot** (v1: 71.9%).
+Neither difference from v1 is statistically significant, but v2's 77.4% is
+the project's best measured number. Everything above this paragraph
+describes v1. See "v2: composite-primary-key fix and retrain" below.
 
 ## Pivot: 7B -> 3B
 
@@ -570,9 +571,12 @@ placeholder extrapolation.
 
 ## v2: composite-primary-key fix and retrain
 
-Status: **checkpoint selected on dev; `test.json` not run yet.** Runs on
-2026-10-07/08, output in `checkpoints/v2/`, dev results in
-`results/finetuned/v2/`. v1's checkpoints and results are untouched.
+Status: **done, except re-running the baselines on the corrected prompts.**
+Runs on 2026-10-07/09, output in `checkpoints/v2/`, results in
+`results/finetuned/v2/` and `results/error_analysis/v2/`. v1's checkpoints
+and results are untouched. `checkpoints/v2/final/` is a copy of
+checkpoint-200, left behind by the first pass's early stopping; it is not
+the selected model.
 
 **Why retrain.** Two problems surfaced after the v1 write-up:
 
@@ -646,10 +650,54 @@ execution_accuracy:
 region's level is closer to ~75%); the single `test.json` run is the
 unbiased number.
 
-**Not done yet:** the test-set run for checkpoint-600 (zero-shot and
-fine-tuned + few-shot); re-running both baselines on the corrected prompts,
-since `results/baselines/` used the old ones; and pointing `demo/app.py`,
-`reports/technical_report.md` and README at v2.
+**Test results** (full `test.json`, n=2,147, run once per mode). v2 uses the
+corrected prompts. v1 and both baselines were measured on the old prompts,
+before the fix:
+
+| | exact_match | execution_accuracy |
+|---|---|---|
+| Zero-shot baseline (3B base) | 26.9% | 66.3% |
+| Few-shot baseline (3B base, 5-shot) | 50.9% | 74.3% |
+| v1 checkpoint-536, zero-shot | 43.0% | 71.9% |
+| v1 checkpoint-536 + few-shot | 53.1% | 76.2% |
+| v2 checkpoint-600, zero-shot | 44.4% | 71.7% |
+| **v2 checkpoint-600 + few-shot** | **54.0%** | **77.4%** |
+
+- **Zero-shot: no change from v1.** 111 vs. 115 examples that only one of
+  the two gets right (p=0.84). The 3.0pt dev advantage did not carry over
+  to test.
+- **Few-shot: +1.2pt over v1, not significant.** 102 vs. 76 (p=0.061). Per
+  database, v2 is better on 20 of the 40 test databases, worse on 11 and
+  tied on 9 (sign test p=0.15). The gain is not in the composite-key
+  subset (77.2% vs. 76.7%) but in the rest (77.6% vs. 75.6%), so it can't
+  be credited to the primary-key fix.
+- **Against the few-shot baseline: +3.1pt** (192 vs. 126, p=2.6e-4), and
+  few-shot adds 5.7pt on top of v2 zero-shot (p=3.7e-13). Combining
+  fine-tuning with few-shot is still the best configuration.
+- **Why the dev gain shrank.** checkpoint-600 was the maximum of eight dev
+  evaluations, and v2 lost 4.7pt from dev to test against v1's 1.0pt. The
+  per-example McNemar test on dev also overstated confidence: dev has only
+  20 databases, and examples from the same database don't succeed or fail
+  independently. Checkpoint comparisons on dev should also be read at the
+  database level from now on.
+
+**Error analysis, v2 vs. v1** (execution_accuracy on test by query
+category, same heuristic categories as "Error analysis" above; output in
+`results/error_analysis/v2/breakdown.json`):
+
+| category | n | v1 zero-shot | v2 zero-shot | v1 + few-shot | v2 + few-shot |
+|---|---|---|---|---|---|
+| select (simple) | 526 | 86.7% | 87.6% | 88.6% | 89.5% |
+| join | 862 | 59.2% | 58.2% | 67.1% | 68.0% |
+| subquery | 346 | 66.2% | 63.0% | 66.5% | 70.5% |
+| aggregation | 1,054 | 69.3% | 69.7% | 74.1% | 74.4% |
+
+Join queries are still the weakest category in every condition. The
+largest category-level change is subquery with few-shot (+4.0pt).
+
+**Still open:** re-running both baselines on the corrected prompts (~2h),
+deferred. Until then, every comparison against a baseline mixes the effect
+of fine-tuning with the effect of the prompt fix.
 
 ## Next steps
 
@@ -694,10 +742,15 @@ since `results/baselines/` used the old ones; and pointing `demo/app.py`,
 13. ~~v2 retrain on corrected primary keys, step-level eval~~ -- done:
     checkpoint-600 selected at 76.4% dev execution_accuracy. See "v2:
     composite-primary-key fix and retrain" above.
-14. Run v2 checkpoint-600 once against `test.json`, zero-shot and
-    fine-tuned + few-shot.
-15. Re-run the zero-shot and few-shot baselines on the corrected prompts.
-16. Update `demo/app.py`, `reports/technical_report.md` and README to v2.
+14. ~~Run v2 checkpoint-600 once against `test.json`~~ -- done: 71.7%
+    zero-shot, **77.4% fine-tuned + few-shot**. See "Test results" in the
+    v2 section above.
+15. Re-run the zero-shot and few-shot baselines on the corrected prompts
+    (`python scripts/run_baseline_eval.py --output-dir results/baselines/v2`;
+    the default output dir would overwrite v1's baseline files). Deferred.
+16. ~~Update `demo/app.py`, `reports/technical_report.md` and README to
+    v2~~ -- done. The demo now loads `checkpoints/v2/checkpoint-600`; checked
+    against the live server via `gradio_client`.
 
 Items 1-12 completed v1 (see README's Roadmap section and
-`reports/technical_report.md`); items 14-16 are open for v2.
+`reports/technical_report.md`). Of the v2 items, only 15 is open.
