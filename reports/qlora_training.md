@@ -16,6 +16,15 @@ before it became clear it would take ~59h total, not the ~14h estimated from
 a smoke test -- traced to VRAM/BAR1 pressure specific to running a 7B model
 this close to the 12GB limit (full incident below).
 
+**v2 retrain (in progress):** after the above was closed out, the prompt
+schemas turned out to carry wrong primary keys for composite-keyed tables,
+and the per-epoch eval grid turned out too coarse to locate the best
+checkpoint. A retrain on corrected prompts with step-level evaluation picked
+**checkpoint-600 at 76.4% dev execution_accuracy** (vs. 73.4% for v1's
+checkpoint-536 on the same prompts, p=0.004). The test set hasn't been run
+yet, so every other number in this report still describes v1. See "v2:
+composite-primary-key fix and retrain" below.
+
 ## Pivot: 7B -> 3B
 
 ### What happened
@@ -559,6 +568,89 @@ meaningfully from 7B's (plausible, given how much closer 3B already runs to
 training results exist -- but ~80% is now the working target, not a
 placeholder extrapolation.
 
+## v2: composite-primary-key fix and retrain
+
+Status: **checkpoint selected on dev; `test.json` not run yet.** Runs on
+2026-10-07/08, output in `checkpoints/v2/`, dev results in
+`results/finetuned/v2/`. v1's checkpoints and results are untouched.
+
+**Why retrain.** Two problems surfaced after the v1 write-up:
+
+1. **Wrong primary keys in every prompt with a composite-keyed table.**
+   `tables.json` keeps only the first column of a composite key, so 132/876
+   train/dev tables were rendered with a single-column `PRIMARY KEY`, which
+   tells the model a non-unique column is unique. This affected 53% of train
+   examples and 37% of dev examples. Fixed by reading keys from the SQLite
+   files; full details in `reports/data_preparation.md` ("Correction
+   (2026-10-07)").
+2. **The per-epoch eval grid couldn't locate the optimum.** v1's eval_loss
+   was already lowest at the first of its three points (0.2635 / 0.2883 /
+   0.3618 at steps 536 / 1072 / 1608), so the minimum could have been
+   anywhere before step 1072.
+
+**Training changes** (`configs/train_config.yaml`; all other hyperparameters
+as v1):
+
+- eval and save every 100 steps instead of once per epoch;
+- 2 epochs (1,072 steps) instead of 3, since epoch 3 cost v1 7.4pt of dev
+  execution_accuracy. This also shortens the cosine schedule (LR at step 536
+  is ~1.05e-4 instead of ~1.56e-4), so v2's checkpoints aren't
+  step-comparable to v1's;
+- early stopping on eval_loss (patience 4), later removed -- see below.
+
+**How the run actually went.** It first early-stopped at step 600, because
+eval_loss bottomed out at step 200 (0.2255). Dev execution_accuracy showed
+that eval_loss was misleading here, so training was resumed from
+checkpoint-600 on the same schedule with early stopping off
+(`early_stopping_patience: null`). The resume was checked directly: LR at
+step 610 (8.30e-5) matched the schedule and train loss carried on from where
+it stopped. Training was then stopped by hand after checkpoint-900.
+checkpoint-400 was never evaluated (it sits between two ~72% points).
+
+**Dev results** (full `dev.json`, n=1,034, corrected prompts, zero-shot):
+
+| checkpoint | eval_loss | exact_match | execution_accuracy |
+|---|---|---|---|
+| v2 checkpoint-100 | 0.2318 | 43.6% | 70.5% |
+| v2 checkpoint-200 | **0.2255** | 47.5% | 71.8% |
+| v2 checkpoint-300 | 0.2417 | 43.7% | 71.7% |
+| v2 checkpoint-500 | 0.2693 | 45.4% | 71.9% |
+| **v2 checkpoint-600** | 0.2851 | 46.7% | **76.4%** |
+| v2 checkpoint-700 | 0.2936 | 44.5% | 74.8% |
+| v2 checkpoint-800 | 0.3017 | 47.4% | 74.6% |
+| v2 checkpoint-900 | 0.3075 | 47.1% | 74.4% |
+| v1 checkpoint-536 | -- | 44.3% | 73.4% |
+
+Significance below is an exact two-sided McNemar test on per-example
+execution_accuracy:
+
+- **checkpoint-600 is the only v2 checkpoint significantly better than v1's
+  checkpoint-536** (69 vs. 38 examples that only one of the two gets right,
+  p=0.004). checkpoints 700 / 800 / 900 are 1.0-1.4pt ahead, but not
+  significantly (p=0.21-0.43). checkpoint-900 is significantly below
+  checkpoint-600 (p=0.04).
+- **eval_loss is a poor signal for checkpoint selection on this task.** It
+  rose monotonically from step 200 to 900, while execution_accuracy sat at
+  ~72% for steps 200-500, jumped at step 600, then held at ~74.5%. Picking
+  by eval_loss would have shipped checkpoint-200, 4.6pt below
+  checkpoint-600. The jump coincides with the start of epoch 2 (step 536)
+  and a decaying LR.
+- **The primary-key fix alone is a small effect.** v1's checkpoint-536 goes
+  from 72.9% on the old prompts to 73.4% on the corrected ones (7 vs. 2
+  flips, p=0.18), and the whole gain is in the composite-key subset (72.6%
+  -> 73.9%). v2's improvement can't be attributed to the fix alone, since
+  the schedule and checkpoint step changed too.
+
+**Selected: checkpoint-600.** It is the best of eight dev evaluations, so
+76.4% is an optimistic estimate of its accuracy (700-900 suggest the
+region's level is closer to ~75%); the single `test.json` run is the
+unbiased number.
+
+**Not done yet:** the test-set run for checkpoint-600 (zero-shot and
+fine-tuned + few-shot); re-running both baselines on the corrected prompts,
+since `results/baselines/` used the old ones; and pointing `demo/app.py`,
+`reports/technical_report.md` and README at v2.
+
 ## Next steps
 
 1. ~~Run baseline evaluation (`scripts/run_baseline_eval.py`) against
@@ -599,5 +691,13 @@ placeholder extrapolation.
     together dataset, baselines, fine-tuning, results, and error analysis
     into one polished document.
 
-All roadmap items complete. Project closed out -- see README's Roadmap
-section and `reports/technical_report.md` for the final write-up.
+13. ~~v2 retrain on corrected primary keys, step-level eval~~ -- done:
+    checkpoint-600 selected at 76.4% dev execution_accuracy. See "v2:
+    composite-primary-key fix and retrain" above.
+14. Run v2 checkpoint-600 once against `test.json`, zero-shot and
+    fine-tuned + few-shot.
+15. Re-run the zero-shot and few-shot baselines on the corrected prompts.
+16. Update `demo/app.py`, `reports/technical_report.md` and README to v2.
+
+Items 1-12 completed v1 (see README's Roadmap section and
+`reports/technical_report.md`); items 14-16 are open for v2.

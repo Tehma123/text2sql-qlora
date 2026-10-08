@@ -62,12 +62,16 @@ training:
   eval_steps: 100
   save_strategy: steps
   save_steps: 100
-  # Stop after this many consecutive evals without a new best eval_loss
-  # (400 steps here), and save the best-eval_loss checkpoint as final/.
-  # eval_loss is only a proxy for execution_accuracy (epoch 2 had higher eval_loss than epoch 1 but
-  # statistically the same accuracy), so the shipped checkpoint should still
-  # be picked by scripts/evaluate.py on dev among the ones around the minimum.
-  early_stopping_patience: 4
+  # No early stopping. v2 first ran with early_stopping_patience: 4 on
+  # eval_loss and stopped at step 600 -- eval_loss bottomed out at step 200
+  # (0.2255) and rose steadily after, but dev execution_accuracy went the
+  # other way: ~72% for steps 200-500, then 76.4% at step 600 (vs. 73.4% for
+  # v1's checkpoint-536, p=0.004). eval_loss is the wrong stopping signal for
+  # this task, so every checkpoint is kept and the shipped one is picked by
+  # scripts/evaluate.py on dev. (Setting this to an integer turns early
+  # stopping on eval_loss back on, with the best-eval_loss checkpoint saved
+  # as final/.)
+  early_stopping_patience: null
   # 8-bit optimizer states (bitsandbytes) -- LoRA-only trainable params make
   # this a small saving in absolute terms, but it's free extra headroom on
   # top of the margin measured in vram_check.py, and is Unsloth's own
