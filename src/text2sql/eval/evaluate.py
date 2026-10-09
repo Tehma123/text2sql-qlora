@@ -82,7 +82,7 @@ def main() -> None:
     max_seq_length = data_config["max_seq_length"]
 
     num_examples = eval_config.get("baselines", {}).get("few_shot", {}).get("num_examples", 5)
-    few_shot_pool = _sample_few_shot_pool(eval_data, num_examples) if args.mode == "few_shot" else {}
+    few_shot_pool = _sample_few_shot_pool(eval_data) if args.mode == "few_shot" else {}
 
     out_dir = resolve_path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)

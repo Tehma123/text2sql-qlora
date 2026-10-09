@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from text2sql.data.schema_utils import get_db_path
-from text2sql.eval.metrics import aggregate, exact_match, execution_accuracy
+from text2sql.eval.metrics import aggregate, exact_match, execution_accuracy, normalize_sql
 from text2sql.models.load_model import load_base_model
 from text2sql.prompts.templates import build_few_shot_messages, build_messages
 from text2sql.utils.config import load_config, resolve_path
@@ -37,7 +37,9 @@ def _load_test_set(path: Path) -> list[dict[str, Any]]:
         return json.load(f)
 
 
-def _sample_few_shot_pool(test_data: list[dict[str, Any]], num_examples: int, seed: int = 42) -> dict[str, list]:
+def _sample_few_shot_pool(test_data: list[dict[str, Any]], seed: int = 42) -> dict[str, list]:
+    """Every example of each database, in a fixed random order; `select_demos`
+    takes the first ones that don't give away the answer."""
     rng = random.Random(seed)
     by_db = defaultdict(list)
     for ex in test_data:
@@ -47,10 +49,29 @@ def _sample_few_shot_pool(test_data: list[dict[str, Any]], num_examples: int, se
     for db_id, examples in by_db.items():
         indices = list(range(len(examples)))
         rng.shuffle(indices)
-        # +1 headroom: the current question itself may land in the sample and
-        # gets filtered out per-example in run_baseline below.
-        pool[db_id] = [examples[i] for i in indices[: num_examples + 1]]
+        pool[db_id] = [examples[i] for i in indices]
     return pool
+
+
+def select_demos(ex: dict[str, Any], few_shot_pool: dict[str, list], num_examples: int) -> list[dict[str, str]]:
+    """First `num_examples` pool entries on `ex`'s database that are neither
+    `ex` itself nor carry its gold SQL.
+
+    Spider asks most gold queries in two paraphrased forms, so excluding only
+    the identical question text let the paraphrase through as a demo with
+    the exact answer (164 of 2,147 test examples before this check; see
+    reports/qlora_training.md). Queries are compared after `normalize_sql`,
+    the same canonicalization exact_match uses.
+    """
+    gold = normalize_sql(ex["query"])
+    demos = []
+    for c in few_shot_pool[ex["db_id"]]:
+        if c["question"] == ex["question"] or normalize_sql(c["query"]) == gold:
+            continue
+        demos.append({"question": c["question"], "query": c["query"]})
+        if len(demos) == num_examples:
+            break
+    return demos
 
 
 def _extract_sql(generated_text: str) -> str:
@@ -108,8 +129,7 @@ def run_baseline(
         if mode == "zero_shot":
             messages = build_messages(ex["question"], ex["schema"])
         else:
-            candidates = [c for c in few_shot_pool[ex["db_id"]] if c["question"] != ex["question"]]
-            demos = [{"question": c["question"], "query": c["query"]} for c in candidates[:num_examples]]
+            demos = select_demos(ex, few_shot_pool, num_examples)
             messages = build_few_shot_messages(ex["question"], ex["schema"], demos)
 
         pred_sql = generate_sql(model, tokenizer, messages, max_seq_length)
@@ -161,7 +181,7 @@ def main() -> None:
     num_examples = baselines_cfg.get("few_shot", {}).get("num_examples", 5)
 
     raw_dir = resolve_path(data_config["raw_dir"])
-    few_shot_pool = _sample_few_shot_pool(test_data, num_examples) if "few_shot" in modes else {}
+    few_shot_pool = _sample_few_shot_pool(test_data) if "few_shot" in modes else {}
 
     max_seq_length = data_config["max_seq_length"]
     model, tokenizer = load_base_model(max_seq_length)

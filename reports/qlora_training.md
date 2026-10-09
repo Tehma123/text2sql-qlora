@@ -29,6 +29,13 @@ paraphrases carrying the test question's own answer (see "Few-shot caveat"
 in the v2 section). Everything above this paragraph describes v1. See "v2:
 composite-primary-key fix and retrain" below.
 
+**Closed 2026-10-09** after an acceptance review (see "Acceptance review and
+closure" near the end): every reported number was recomputed and holds; the
+claim that fine-tuning alone falls short of few-shot was corrected (it is a
+statistical tie once the demo leak is removed); the demo exclusion was fixed
+in code but not re-run; and the target was lowered from ~80% to 75% after
+the results were known, which 77.4% meets.
+
 ## Pivot: 7B -> 3B
 
 ### What happened
@@ -293,6 +300,14 @@ both few-shot (-2.4pt execution_accuracy, -7.9pt exact_match) and the ~80%
 target (-8.1pt).** This isn't a broken pipeline; every step from data
 masking through checkpoint selection was verified directly along the way.
 It's a real result that the original target didn't anticipate.
+
+> **Correction (2026-10-09):** "falls short of few-shot" overstates it. The
+> few-shot numbers include a demo leak (see "Few-shot caveat" in the v2
+> section) that lifts only the few-shot conditions. On the 1,983 leak-free
+> test examples, checkpoint-536 zero-shot trails the few-shot baseline by
+> 1.2pt (71.7% vs. 72.9%, 164 vs. 187, p=0.24) -- no significant difference.
+> Fine-tuning alone does not *beat* few-shot, which is what the explanation
+> below accounts for.
 
 **Why fine-tuning didn't beat few-shot, most likely explanation:** the
 few-shot baseline is shown 5 worked (question, SQL) examples *from the same
@@ -572,6 +587,17 @@ meaningfully from 7B's (plausible, given how much closer 3B already runs to
 training results exist -- but ~80% is now the working target, not a
 placeholder extrapolation.
 
+**Target lowered to 75% (2026-10-09).** At project close, with all test
+results already known, the target was lowered from ~80% to **75% execution
+accuracy** on `test.json`. Because the change was made after seeing the
+results, meeting it is weaker evidence than meeting a target fixed in
+advance, so both readings are kept: v2 + few-shot's 77.4% (76.4% on the
+leak-free examples) meets 75% and is 2.6pt short of ~80%. 75% is only 1.1pt
+above the few-shot baseline on the same prompts (73.9%), and the 95%
+database-level bootstrap interval for 77.4% (73.1-82.0%) contains both 75%
+and 80%. The evidence that fine-tuning helps is its significant gain over
+both baselines, not clearing 75%.
+
 ## v2: composite-primary-key fix and retrain
 
 Status: **done.**
@@ -681,7 +707,9 @@ v1 was measured on the old prompts only:
   over the zero-shot baseline (264 vs. 154, p=8e-8), and v2 + few-shot is
   +3.5pt over the few-shot baseline (198 vs. 124, p=4.4e-5). Few-shot adds
   5.7pt on top of v2 zero-shot (p=3.7e-13). Combining fine-tuning with
-  few-shot is still the best configuration.
+  few-shot is still the best configuration. v2 zero-shot vs. the few-shot
+  baseline is -2.2pt on all examples but -0.6pt (p=0.56) on the leak-free
+  ones -- see "Acceptance review and closure" below.
 - **The primary-key fix has no measurable effect on the base model.**
   Zero-shot moves +0.3pt (28 vs. 22, p=0.48) and few-shot -0.4pt (3 vs. 11,
   p=0.057); in both cases the change is confined to the composite-key
@@ -727,9 +755,75 @@ re-run):
 | **v2 checkpoint-600 + few-shot** | **77.4%** | **76.4%** |
 
 The comparisons hold on the clean subset: v2 + few-shot leads the few-shot
-baseline on the same prompts by 3.9pt (193 vs. 116, p=1.4e-5). Fixing the
-exclusion to drop demos with the same gold SQL would change every few-shot
-number, so it was left as is and recorded here (roadmap item 17).
+baseline on the same prompts by 3.9pt (193 vs. 116, p=1.4e-5).
+
+"Carrying the gold SQL" means equal after `normalize_sql` (the sqlglot
+canonicalization exact_match uses): 164 examples, on both the old and the
+corrected prompts. Comparing raw strings instead gives 160.
+
+The leak inflates only the few-shot conditions, so it does *not* cancel in
+comparisons between a few-shot and a zero-shot condition (e.g. fine-tuned
+zero-shot vs. the few-shot baseline); those should be read on the clean
+subset.
+
+**Fixed in code, not re-run (2026-10-09).** `select_demos` in
+`baseline_eval.py` now skips demos whose gold SQL matches the target's,
+walking further down the same seeded per-database order, and `demo/app.py`
+applies the same rule. This changes the demos of exactly the 164 leaked
+examples and leaves every other prompt byte-identical. A re-run of the four
+few-shot conditions (~4h) was started and then cancelled when the project
+was closed, so every few-shot number in this report is from the old
+exclusion. Re-running with the current code should land close to the
+clean-subset column above, though not exactly on it, since the 164 examples
+get new demos rather than being dropped.
+
+## Acceptance review and closure (2026-10-09)
+
+Before closing, every number in this report, `technical_report.md`,
+`baseline_evaluation.md` and the README was recomputed from the
+per-example result files rather than taken from logs. Significance was also
+checked at the database level, since test examples cluster in 40 databases:
+a 95% bootstrap interval resampling whole databases, and a sign test over
+databases.
+
+**Integrity: passes.** All 8 test result files (n=2,147 each) and 9 dev
+result files recompute to exactly the stored metrics; the unit tests pass;
+the demo loads v2 checkpoint-600.
+
+**Main claims, re-checked on test (execution_accuracy):**
+
+| claim | difference | per-example | database level | verdict |
+|---|---|---|---|---|
+| v2 zero-shot > zero-shot baseline | +5.1pt | p=8e-8 | 95% CI [+3.2, +7.1], 31 vs. 8 DBs | holds |
+| v2 + few-shot > few-shot baseline | +3.5pt (clean +3.9) | p=4.4e-5 | 95% CI [+1.5, +5.4], 25 vs. 8 DBs | holds |
+| v2 + few-shot > zero-shot baseline | +10.8pt (clean +9.3) | p=3e-27 | 95% CI [+8.4, +13.1], 33 vs. 3 DBs | holds |
+| few-shot adds to v2 | +5.7pt (clean +4.5) | p=3.7e-13 | 95% CI [+3.5, +7.9], 31 vs. 5 DBs | holds |
+| v2 > v1 | zero-shot -0.2, few-shot +1.2 | p=0.84 / 0.061 | few-shot 95% CI [-0.0, +2.5] | not shown; v2 is not worse |
+| v2 zero-shot < few-shot baseline | -2.2pt, **clean -0.6** | p=0.019, **clean 0.56** | 95% CI [-5.1, +0.8], 15 vs. 21 DBs | **corrected**: a tie, not a shortfall |
+
+**Corrections made at closure:**
+
+- The "fine-tuning alone falls short of few-shot" claim (here, README,
+  technical report) now reads "does not beat", with the clean-subset numbers
+  (v1 -1.2pt, p=0.24; v2 -0.6pt, p=0.56).
+- The leak count's definition is stated (164 by `normalize_sql`, 160 by raw
+  string).
+- The demo exclusion is fixed in code and in the demo app (not re-run, see
+  "Fixed in code, not re-run" above).
+- Target lowered from ~80% to 75% after the results were known (see
+  "Target"). The best result, 77.4%, meets 75% and misses ~80%.
+
+**Minor notes, left as is:** differences elsewhere in the reports are
+mostly taken between rounded figures (e.g. v2 + few-shot vs. the few-shot
+baseline is +3.45pt unrounded, reported as +3.5pt). The primary-key fix's
+-0.4pt on the few-shot baseline is not significant per example (p=0.057),
+but every database whose score changed (7) moved down, so it is a small
+consistent cost rather than pure noise; it does not affect any conclusion.
+
+**Outcome:** accepted. QLoRA fine-tuning measurably improves the 3B model,
+and fine-tuning plus few-shot is the best configuration at 77.4% execution
+accuracy (76.4% without leaked demos). Join queries (68.0%, 40% of the test
+set) remain the clearest lever for any future work.
 
 ## Next steps
 
@@ -737,7 +831,7 @@ number, so it was left as is and recorded here (roadmap item 17).
    `unsloth/Qwen2.5-Coder-3B-Instruct-bnb-4bit`~~ -- done: zero-shot
    66.3%/26.9%, few-shot 74.3%/50.9%.
 2. ~~Revisit the ≥85% target against the new 3B baselines~~ -- done: ~80%,
-   see above.
+   see above (lowered to 75% at project close).
 3. ~~Re-verify response-only masking against 3B specifically~~ -- done, see
    above: 4 examples decoded, all matched gold SQL exactly.
 4. ~~Re-measure real training throughput on 3B~~ -- done: ~17.5s/step,
@@ -785,11 +879,17 @@ number, so it was left as is and recorded here (roadmap item 17).
 16. ~~Update `demo/app.py`, `reports/technical_report.md` and README to
     v2~~ -- done. The demo now loads `checkpoints/v2/checkpoint-600`; checked
     against the live server via `gradio_client`.
-17. Optional: exclude few-shot demos that share the target's gold SQL, not
-    just its exact question text (see "Few-shot caveat" in the v2 section),
-    then re-run the few-shot evaluations (~3h). Every few-shot number would
-    drop by about 1-1.5pt.
+17. ~~Exclude few-shot demos that share the target's gold SQL, not just its
+    exact question text~~ -- fixed in code (`select_demos`, and the demo
+    app). The re-run of the four few-shot evaluations was cancelled at
+    project close, so reported few-shot numbers use the old exclusion.
+18. ~~Acceptance review~~ -- done, see "Acceptance review and closure".
 
 Items 1-12 completed v1 (see README's Roadmap section and
-`reports/technical_report.md`). v2's items 13-16 are done; 17 is an
-optional fix for a known evaluation caveat.
+`reports/technical_report.md`), 13-18 completed v2. **The project is closed
+(2026-10-09).** If it is ever reopened, the first step is the cancelled
+re-run: `python scripts/evaluate.py --checkpoints
+checkpoints/v2/checkpoint-600 --split test --mode few_shot --output-dir
+<new dir>` and `python scripts/run_baseline_eval.py --modes few_shot
+--output-dir <new dir>` (new output dirs, so the as-reported files are
+kept).

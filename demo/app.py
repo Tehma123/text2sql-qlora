@@ -32,6 +32,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from text2sql.data.schema_utils import get_db_path  # noqa: E402
 from text2sql.eval.baseline_eval import generate_sql  # noqa: E402
+from text2sql.eval.metrics import normalize_sql  # noqa: E402
 from text2sql.models.load_model import load_finetuned_model  # noqa: E402
 from text2sql.prompts.templates import build_few_shot_messages  # noqa: E402
 from text2sql.utils.config import load_config, resolve_path  # noqa: E402
@@ -106,10 +107,18 @@ def get_example_questions(db_id: str) -> list[str]:
 
 def _few_shot_demos(db_id: str, question: str) -> list[dict[str, str]]:
     """Worked (question, query) pairs from this database, for use as in-context
-    demos -- excludes `question` itself, matching `evaluate.py --mode few_shot`'s
-    exclusion logic so a clicked example question can't just show its own answer."""
+    demos -- excludes `question` itself and, when it is one of this database's
+    test questions, any demo carrying its gold SQL, matching `evaluate.py --mode
+    few_shot`'s exclusion logic so neither a clicked example question nor its
+    paraphrase can just show its own answer."""
     q_norm = question.strip().lower()
-    candidates = [ex for ex in _dedup_by_query(_EXAMPLES_BY_DB[db_id]) if ex["question"].strip().lower() != q_norm]
+    examples = _EXAMPLES_BY_DB[db_id]
+    golds = {normalize_sql(ex["query"]) for ex in examples if ex["question"].strip().lower() == q_norm}
+    candidates = [
+        ex
+        for ex in _dedup_by_query(examples)
+        if ex["question"].strip().lower() != q_norm and normalize_sql(ex["query"]) not in golds
+    ]
     return [{"question": ex["question"], "query": ex["query"]} for ex in candidates[:NUM_FEW_SHOT]]
 
 

@@ -152,18 +152,22 @@ schema once, so nothing in `data/processed/` needed to change.
 `reports/data_preparation.md`), so there is no train example sharing a
 schema with any test question to draw a few-shot demonstration from.
 Demonstrations are instead sampled from *other test questions on the same
-database* (`_sample_few_shot_pool` in `baseline_eval.py`, seeded, excludes
-the current question) -- showing a few worked examples on an unfamiliar
-schema before asking the real question, which is standard practice for
-cross-domain few-shot prompting.
+database* (`_sample_few_shot_pool` + `select_demos` in `baseline_eval.py`,
+seeded) -- showing a few worked examples on an unfamiliar schema before
+asking the real question, which is standard practice for cross-domain
+few-shot prompting.
 
-**Known leak (found 2026-10-09):** the current question is excluded by exact
-question text only. Spider usually asks each gold query in two paraphrased
-forms, so for 164 of 2,147 test examples (7.6%) a demo is a paraphrase
-carrying the exact gold SQL. Accuracy on those examples is ~90%, which lifts
-every few-shot number by about 1-1.5pt. On the 1,983 clean examples, the 3B
-few-shot baseline scores 72.9% (old prompts) and 72.5% (corrected prompts).
-Details in `reports/qlora_training.md` ("Few-shot caveat").
+**Known leak (found 2026-10-09):** the current question was excluded by
+exact question text only. Spider usually asks each gold query in two
+paraphrased forms, so for 164 of 2,147 test examples (7.6%) a demo is a
+paraphrase carrying the same gold SQL (equal after `normalize_sql`; 160 by
+raw string). Accuracy on those examples is ~90%, which lifts every few-shot
+number by about 1-1.5pt. On the 1,983 clean examples, the 3B few-shot
+baseline scores 72.9% (old prompts) and 72.5% (corrected prompts). The
+exclusion is now fixed in code (`select_demos` also skips demos with the
+target's gold SQL), but the few-shot runs were not repeated before the
+project closed, so every few-shot number in this report is from the old
+exclusion. Details in `reports/qlora_training.md` ("Few-shot caveat").
 
 ## Few-shot results
 
