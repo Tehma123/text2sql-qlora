@@ -8,6 +8,11 @@ comfortably as a single-step VRAM check suggested. 7B's baselines no longer
 apply as the comparison floor for fine-tuning; both 3B baselines are now
 measured below.
 
+**Re-run on corrected prompts (2026-10-09):** both 3B baselines were
+measured again after the composite-primary-key fix to the schema prompts
+(`reports/data_preparation.md`, "Correction (2026-10-07)"). The results
+barely move -- see "Re-run on corrected primary keys" at the end.
+
 ## Summary
 
 | Baseline | Model | exact_match | execution_accuracy | wall-clock |
@@ -152,6 +157,14 @@ the current question) -- showing a few worked examples on an unfamiliar
 schema before asking the real question, which is standard practice for
 cross-domain few-shot prompting.
 
+**Known leak (found 2026-10-09):** the current question is excluded by exact
+question text only. Spider usually asks each gold query in two paraphrased
+forms, so for 164 of 2,147 test examples (7.6%) a demo is a paraphrase
+carrying the exact gold SQL. Accuracy on those examples is ~90%, which lifts
+every few-shot number by about 1-1.5pt. On the 1,983 clean examples, the 3B
+few-shot baseline scores 72.9% (old prompts) and 72.5% (corrected prompts).
+Details in `reports/qlora_training.md` ("Few-shot caveat").
+
 ## Few-shot results
 
 ### 3B (current)
@@ -178,3 +191,25 @@ conventions (e.g. spacing around commas, `count(*)` vs `COUNT(*)`) even when
 it already had enough schema understanding to get the *result* right
 zero-shot. Full per-example predictions for the current model are in
 `results/baselines/{zero_shot,few_shot}.json` (3B).
+
+## Re-run on corrected primary keys
+
+Both 3B baselines re-run on 2026-10-09 against the corrected schema prompts,
+same model, same 2,147 test questions and same seeded few-shot demos
+(`python scripts/run_baseline_eval.py --output-dir results/baselines/v2`,
+~57 min zero-shot + ~52 min few-shot including model load):
+
+| Baseline | prompts | exact_match | execution_accuracy |
+|---|---|---|---|
+| Zero-shot | old | 26.9% | 66.3% |
+| Zero-shot | corrected | 27.2% | 66.6% |
+| Few-shot (5 examples) | old | 50.9% | 74.3% |
+| Few-shot (5 examples) | corrected | 50.3% | 73.9% |
+
+Neither change is significant (exact McNemar on execution_accuracy:
+zero-shot 28 vs. 22 examples that only one prompt version gets right,
+p=0.48; few-shot 3 vs. 11, p=0.057), and in both cases the changed examples
+are all on schemas with a composite-key table. The primary-key fix has no
+measurable effect on the untuned model. These corrected-prompt numbers are
+the right comparison for the v2 fine-tuned model, which was trained and
+tested on the same prompts.

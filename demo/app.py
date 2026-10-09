@@ -155,7 +155,7 @@ def _load_metrics_table() -> str:
     """Reads real numbers from results/{baselines,finetuned}/*.json rather than
     hardcoding them, so this can't silently drift from reports/qlora_training.md."""
     lines = ["| Model | Exact Match | Execution Accuracy |", "|---|---|---|"]
-    baselines_dir = PROJECT_ROOT / "results" / "baselines"
+    baselines_dir = PROJECT_ROOT / "results" / "baselines" / "v2"
     for key, label in (("zero_shot", "Zero-shot"), ("few_shot", "Few-shot (5-shot)")):
         path = baselines_dir / f"{key}.json"
         if not path.exists():
@@ -180,8 +180,8 @@ def _load_metrics_table() -> str:
         lines.append(f"| {label} | {em} | {ex} |")
     lines.append("")
     lines.append(
-        "The two base-model rows were measured before the composite-primary-key fix to the schema "
-        "prompts; the fine-tuned rows use the corrected prompts."
+        "All rows use the corrected schema prompts. The few-shot rows run about 1pt high: for 7.6% of "
+        "test questions one example question is a paraphrase with the same answer (see reports/qlora_training.md)."
     )
     return "\n".join(lines)
 

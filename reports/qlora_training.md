@@ -23,8 +23,11 @@ retrain on corrected prompts with step-level evaluation picked
 checkpoint-600 on dev. On `test.json` it reaches **execution_accuracy 77.4%
 fine-tuned + few-shot** (v1: 76.2%) and **71.7% zero-shot** (v1: 71.9%).
 Neither difference from v1 is statistically significant, but v2's 77.4% is
-the project's best measured number. Everything above this paragraph
-describes v1. See "v2: composite-primary-key fix and retrain" below.
+the project's best measured number. All few-shot numbers in this report,
+v1's included, run about 1-1.5pt high because some few-shot demos are
+paraphrases carrying the test question's own answer (see "Few-shot caveat"
+in the v2 section). Everything above this paragraph describes v1. See "v2:
+composite-primary-key fix and retrain" below.
 
 ## Pivot: 7B -> 3B
 
@@ -571,7 +574,7 @@ placeholder extrapolation.
 
 ## v2: composite-primary-key fix and retrain
 
-Status: **done, except re-running the baselines on the corrected prompts.**
+Status: **done.**
 Runs on 2026-10-07/09, output in `checkpoints/v2/`, results in
 `results/finetuned/v2/` and `results/error_analysis/v2/`. v1's checkpoints
 and results are untouched. `checkpoints/v2/final/` is a copy of
@@ -650,18 +653,21 @@ execution_accuracy:
 region's level is closer to ~75%); the single `test.json` run is the
 unbiased number.
 
-**Test results** (full `test.json`, n=2,147, run once per mode). v2 uses the
-corrected prompts. v1 and both baselines were measured on the old prompts,
-before the fix:
+**Test results** (full `test.json`, n=2,147, run once per mode). The
+baselines were measured twice: on the old prompts (before the fix, as in
+v1's report) and again on the corrected prompts (`results/baselines/v2/`).
+v1 was measured on the old prompts only:
 
-| | exact_match | execution_accuracy |
-|---|---|---|
-| Zero-shot baseline (3B base) | 26.9% | 66.3% |
-| Few-shot baseline (3B base, 5-shot) | 50.9% | 74.3% |
-| v1 checkpoint-536, zero-shot | 43.0% | 71.9% |
-| v1 checkpoint-536 + few-shot | 53.1% | 76.2% |
-| v2 checkpoint-600, zero-shot | 44.4% | 71.7% |
-| **v2 checkpoint-600 + few-shot** | **54.0%** | **77.4%** |
+| | prompts | exact_match | execution_accuracy |
+|---|---|---|---|
+| Zero-shot baseline (3B base) | old | 26.9% | 66.3% |
+| Zero-shot baseline (3B base) | corrected | 27.2% | 66.6% |
+| Few-shot baseline (3B base, 5-shot) | old | 50.9% | 74.3% |
+| Few-shot baseline (3B base, 5-shot) | corrected | 50.3% | 73.9% |
+| v1 checkpoint-536, zero-shot | old | 43.0% | 71.9% |
+| v1 checkpoint-536 + few-shot | old | 53.1% | 76.2% |
+| v2 checkpoint-600, zero-shot | corrected | 44.4% | 71.7% |
+| **v2 checkpoint-600 + few-shot** | corrected | **54.0%** | **77.4%** |
 
 - **Zero-shot: no change from v1.** 111 vs. 115 examples that only one of
   the two gets right (p=0.84). The 3.0pt dev advantage did not carry over
@@ -671,9 +677,16 @@ before the fix:
   tied on 9 (sign test p=0.15). The gain is not in the composite-key
   subset (77.2% vs. 76.7%) but in the rest (77.6% vs. 75.6%), so it can't
   be credited to the primary-key fix.
-- **Against the few-shot baseline: +3.1pt** (192 vs. 126, p=2.6e-4), and
-  few-shot adds 5.7pt on top of v2 zero-shot (p=3.7e-13). Combining
-  fine-tuning with few-shot is still the best configuration.
+- **Fine-tuning's effect on the same prompts:** v2 zero-shot is +5.1pt
+  over the zero-shot baseline (264 vs. 154, p=8e-8), and v2 + few-shot is
+  +3.5pt over the few-shot baseline (198 vs. 124, p=4.4e-5). Few-shot adds
+  5.7pt on top of v2 zero-shot (p=3.7e-13). Combining fine-tuning with
+  few-shot is still the best configuration.
+- **The primary-key fix has no measurable effect on the base model.**
+  Zero-shot moves +0.3pt (28 vs. 22, p=0.48) and few-shot -0.4pt (3 vs. 11,
+  p=0.057); in both cases the change is confined to the composite-key
+  subset. Together with v1's +0.5pt on dev, the fix is correct but worth
+  well under a point.
 - **Why the dev gain shrank.** checkpoint-600 was the maximum of eight dev
   evaluations, and v2 lost 4.7pt from dev to test against v1's 1.0pt. The
   per-example McNemar test on dev also overstated confidence: dev has only
@@ -695,9 +708,28 @@ category, same heuristic categories as "Error analysis" above; output in
 Join queries are still the weakest category in every condition. The
 largest category-level change is subquery with few-shot (+4.0pt).
 
-**Still open:** re-running both baselines on the corrected prompts (~2h),
-deferred. Until then, every comparison against a baseline mixes the effect
-of fine-tuning with the effect of the prompt fix.
+**Few-shot caveat: some demos contain the answer.** Few-shot demos are
+excluded from a test example only when their question text is identical to
+the example's. Spider usually asks each gold query in two paraphrased
+forms, so for **164 of 2,147 test examples (7.6%)** one of the five demos is
+a paraphrase carrying the exact gold SQL, and the model can copy it.
+Accuracy on those examples is 89.0-91.5% in every condition. This has been the
+case since v1's few-shot runs, and it inflates every few-shot number by
+roughly 1-1.5pt, about equally across conditions. Execution accuracy on the
+1,983 clean examples (recomputed from the existing result files, no
+re-run):
+
+| few-shot condition | all 2,147 | clean 1,983 |
+|---|---|---|
+| Few-shot baseline, old prompts | 74.3% | 72.9% |
+| Few-shot baseline, corrected prompts | 73.9% | 72.5% |
+| v1 checkpoint-536 + few-shot | 76.2% | 75.1% |
+| **v2 checkpoint-600 + few-shot** | **77.4%** | **76.4%** |
+
+The comparisons hold on the clean subset: v2 + few-shot leads the few-shot
+baseline on the same prompts by 3.9pt (193 vs. 116, p=1.4e-5). Fixing the
+exclusion to drop demos with the same gold SQL would change every few-shot
+number, so it was left as is and recorded here (roadmap item 17).
 
 ## Next steps
 
@@ -745,12 +777,19 @@ of fine-tuning with the effect of the prompt fix.
 14. ~~Run v2 checkpoint-600 once against `test.json`~~ -- done: 71.7%
     zero-shot, **77.4% fine-tuned + few-shot**. See "Test results" in the
     v2 section above.
-15. Re-run the zero-shot and few-shot baselines on the corrected prompts
-    (`python scripts/run_baseline_eval.py --output-dir results/baselines/v2`;
-    the default output dir would overwrite v1's baseline files). Deferred.
+15. ~~Re-run the zero-shot and few-shot baselines on the corrected
+    prompts~~ -- done (`python scripts/run_baseline_eval.py --output-dir
+    results/baselines/v2`; the default output dir would have overwritten
+    v1's baseline files): 66.6% zero-shot, 73.9% few-shot. The primary-key
+    fix has no measurable effect on the base model.
 16. ~~Update `demo/app.py`, `reports/technical_report.md` and README to
     v2~~ -- done. The demo now loads `checkpoints/v2/checkpoint-600`; checked
     against the live server via `gradio_client`.
+17. Optional: exclude few-shot demos that share the target's gold SQL, not
+    just its exact question text (see "Few-shot caveat" in the v2 section),
+    then re-run the few-shot evaluations (~3h). Every few-shot number would
+    drop by about 1-1.5pt.
 
 Items 1-12 completed v1 (see README's Roadmap section and
-`reports/technical_report.md`). Of the v2 items, only 15 is open.
+`reports/technical_report.md`). v2's items 13-16 are done; 17 is an
+optional fix for a known evaluation caveat.

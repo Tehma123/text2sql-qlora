@@ -4,9 +4,9 @@
 
 This project fine-tunes **Qwen2.5-Coder-3B-Instruct** on the **Spider** text-to-SQL benchmark using **QLoRA** (4-bit quantization + LoRA), on a single consumer GPU (RTX 3060, 12GB VRAM). The goal was a fully reproducible pipeline — data preparation, baselines, fine-tuning, evaluation, error analysis, and a working demo — with every claim backed by a measurement rather than assumed.
 
-**Headline result:** the fine-tuned model, combined with few-shot demonstrations at inference time, reaches **77.4% execution accuracy** on the held-out test split — beating both the zero-shot baseline (66.3%, +11.1pt) and the few-shot baseline (74.3%, +3.1pt), though 2.6 points short of the ~80% target set going in. Fine-tuning alone (no few-shot) reached 71.7%, ahead of zero-shot but behind few-shot — the reasoning behind that gap, and why combining both closes it, is one of the more interesting findings below.
+**Headline result:** the fine-tuned model, combined with few-shot demonstrations at inference time, reaches **77.4% execution accuracy** on the held-out test split — beating both the zero-shot baseline (66.6%, +10.8pt) and the few-shot baseline (73.9%, +3.5pt) measured on the same prompts, though 2.6 points short of the ~80% target set going in. Fine-tuning alone (no few-shot) reached 71.7%, ahead of zero-shot but behind few-shot — the reasoning behind that gap, and why combining both closes it, is one of the more interesting findings below.
 
-These are the numbers for the **v2** model. The first model (v1) reached 76.2% / 71.9%; after it was finished, the schema prompts turned out to carry wrong primary keys for tables with composite keys, so the model was retrained on corrected prompts with finer-grained checkpoint selection (see "Revision: primary-key fix and retraining (v2)"). v2 is not significantly better than v1, but it is the best measured result.
+These are the numbers for the **v2** model. The first model (v1) reached 76.2% / 71.9%; after it was finished, the schema prompts turned out to carry wrong primary keys for tables with composite keys, so the model was retrained on corrected prompts with finer-grained checkpoint selection (see "Revision: primary-key fix and retraining (v2)"). v2 is not significantly better than v1, but it is the best measured result. All few-shot numbers in this report run about 1-1.5pt high because of a demo-selection leak that affects every condition about equally (see "Few-shot caveat" under Results).
 
 The project also pivoted mid-way from a 7B to a 3B base model after a real multi-hour training run revealed the 7B model didn't fit the 12GB GPU as comfortably as a quick VRAM check had suggested — a concrete example of the gap between a single-step measurement and sustained real-world behavior.
 
@@ -47,6 +47,8 @@ Question + schema only, no examples.
 | exact_match | execution_accuracy |
 |---|---|
 | 50.9% | 74.3% |
+
+Both baselines were measured again after the primary-key fix to the schema prompts: **66.6%** zero-shot and **73.9%** few-shot execution accuracy (exact_match 27.2% / 50.3%). Neither change is significant, and every example that changed is on a schema with a composite-key table — the fix doesn't measurably help the untuned model. The corrected-prompt numbers are the ones the v2 model is compared against.
 
 Few-shot lifts both metrics substantially over zero-shot, most dramatically on exact_match (+24 points). The leading hypothesis: few-shot's main effect is teaching the model the dataset's SQL *formatting conventions* (spacing, `count(*)` vs `COUNT(*)`, column ordering) via direct demonstration — a pattern-copying skill — rather than deeper schema reasoning, where the gap to execution correctness narrows less.
 
@@ -89,7 +91,7 @@ v2 retrained on the corrected prompts with the same hyperparameters, except eval
 
 **eval_loss turned out to be a misleading selection signal.** It bottomed out at step 200 and rose steadily after, while execution accuracy sat at ~72% through step 500 and jumped at step 600 (shortly after epoch 2 began). The first v2 pass used early stopping on eval_loss and stopped at step 600; it was resumed with early stopping off once dev accuracy showed the disagreement. Selecting by eval_loss would have shipped a checkpoint 4.6pt worse on dev.
 
-checkpoint-600 was selected (76.4% dev vs. 73.4% for v1's checkpoint-536 on the same prompts). That dev advantage mostly did not survive to test: checkpoint-600 was the best of eight dev evaluations, and the dev set's 20 databases make per-example significance tests overconfident, since questions on the same database don't succeed or fail independently. On test, v2 matches v1 zero-shot (71.7% vs. 71.9%, p=0.84) and is 1.2pt ahead with few-shot (77.4% vs. 76.2%, p=0.061). The primary-key fix on its own is a small effect — v1 gains only 0.5pt on dev from the corrected prompts, and v2's few-shot gain on test comes from questions on schemas with no composite-key table.
+checkpoint-600 was selected (76.4% dev vs. 73.4% for v1's checkpoint-536 on the same prompts). That dev advantage mostly did not survive to test: checkpoint-600 was the best of eight dev evaluations, and the dev set's 20 databases make per-example significance tests overconfident, since questions on the same database don't succeed or fail independently. On test, v2 matches v1 zero-shot (71.7% vs. 71.9%, p=0.84) and is 1.2pt ahead with few-shot (77.4% vs. 76.2%, p=0.061). The primary-key fix on its own is a small effect — v1 gains only 0.5pt on dev from the corrected prompts, the base model moves +0.3pt zero-shot and -0.4pt few-shot on test (neither significant), and v2's few-shot gain on test comes from questions on schemas with no composite-key table.
 
 ### Engineering issues encountered
 
@@ -104,27 +106,31 @@ Four real, reproduced bugs surfaced while building the pipeline, each worth noti
 
 **Full `test.json` (2,147 examples), each model evaluated once per mode:**
 
-| | exact_match | execution_accuracy |
-|---|---|---|
-| Zero-shot (3B base) | 26.9% | 66.3% |
-| Few-shot (3B base, 5-shot) | 50.9% | 74.3% |
-| v1 fine-tuned (checkpoint-536), zero-shot | 43.0% | 71.9% |
-| v1 fine-tuned + few-shot | 53.1% | 76.2% |
-| v2 fine-tuned (checkpoint-600), zero-shot | 44.4% | 71.7% |
-| **v2 fine-tuned + few-shot** | **54.0%** | **77.4%** |
-| Target | — | ~80% |
+| | prompts | exact_match | execution_accuracy |
+|---|---|---|---|
+| Zero-shot (3B base) | original | 26.9% | 66.3% |
+| Zero-shot (3B base) | corrected | 27.2% | 66.6% |
+| Few-shot (3B base, 5-shot) | original | 50.9% | 74.3% |
+| Few-shot (3B base, 5-shot) | corrected | 50.3% | 73.9% |
+| v1 fine-tuned (checkpoint-536), zero-shot | original | 43.0% | 71.9% |
+| v1 fine-tuned + few-shot | original | 53.1% | 76.2% |
+| v2 fine-tuned (checkpoint-600), zero-shot | corrected | 44.4% | 71.7% |
+| **v2 fine-tuned + few-shot** | corrected | **54.0%** | **77.4%** |
+| Target | | — | ~80% |
 
-v2 uses the corrected schema prompts; the two baselines and v1 were measured on the original prompts. Re-running the baselines on the corrected prompts is still open, so the baseline comparisons below mix the effect of fine-tuning with the effect of the prompt fix.
+The comparisons below pair v2 with the baselines measured on the same corrected prompts.
 
-**Fine-tuning alone clearly beats zero-shot** (v2: +5.4pt execution_accuracy, +17.5pt exact_match) but **falls short of the few-shot baseline** (-2.6pt / -6.5pt). The most likely explanation: the few-shot baseline is shown 5 worked examples *from the same unseen database* at inference time — a live demonstration of that schema's naming conventions. The fine-tuned model is evaluated zero-shot (matching its training format), so at inference time on a new database it gets no such per-database signal, only what it generalized from 145 *different* training databases during fine-tuning.
+**Fine-tuning alone clearly beats zero-shot** (v2: +5.1pt execution_accuracy, +17.2pt exact_match, p=8e-8) but **falls short of the few-shot baseline** (-2.2pt / -5.9pt). The most likely explanation: the few-shot baseline is shown 5 worked examples *from the same unseen database* at inference time — a live demonstration of that schema's naming conventions. The fine-tuned model is evaluated zero-shot (matching its training format), so at inference time on a new database it gets no such per-database signal, only what it generalized from 145 *different* training databases during fine-tuning.
 
-**Combining both — fine-tuning and few-shot demonstrations at inference time — beats each baseline individually**: v2 is +11.1pt over zero-shot and +3.1pt over few-shot (p=2.6e-4), and few-shot adds 5.7pt on top of v2's own zero-shot result. This confirms the two provide complementary, not redundant, signal: fine-tuning's cross-database pattern learning and few-shot's live per-schema demonstration stack rather than one subsuming the other.
+**Combining both — fine-tuning and few-shot demonstrations at inference time — beats each baseline individually**: v2 is +10.8pt over zero-shot and +3.5pt over few-shot (p=4.4e-5), and few-shot adds 5.7pt on top of v2's own zero-shot result. This confirms the two provide complementary, not redundant, signal: fine-tuning's cross-database pattern learning and few-shot's live per-schema demonstration stack rather than one subsuming the other.
 
 **On the ~80% target:** it was calibrated as "~5-6 points over the few-shot baseline," implicitly assuming fine-tuning strictly dominates few-shot. The result here shows that assumption doesn't hold — the two methods inject qualitatively different information, so the margin logic that produced the target didn't transfer cleanly. The 77.4% result is a complete, honestly-measured outcome; it just isn't the number the original target predicted.
 
+**Few-shot caveat.** Few-shot demonstrations are other test questions on the same database, and the target question is excluded only when its text matches exactly. Spider usually asks each gold query in two paraphrased forms, so for 164 of the 2,147 test examples (7.6%) one demonstration carries the exact gold SQL, and accuracy on those examples is ~90% in every condition. This inflates every few-shot number by about 1-1.5pt, roughly equally across conditions. On the 1,983 clean examples: few-shot baseline 72.5%, v1 + few-shot 75.1%, **v2 + few-shot 76.4%**. v2's lead over the few-shot baseline holds there (+3.9pt, p=1.4e-5).
+
 ## Error Analysis
 
-Execution_accuracy broken down by SQL query complexity (keyword-heuristic categories matching Spider's own taxonomy — join present, more than one `SELECT` (subquery), aggregate function or `GROUP BY` present, or none of the above as the simple baseline; not mutually exclusive except "select"). This analysis was done on v1; the last column adds v2's combined result:
+Execution_accuracy broken down by SQL query complexity (keyword-heuristic categories matching Spider's own taxonomy — join present, more than one `SELECT` (subquery), aggregate function or `GROUP BY` present, or none of the above as the simple baseline; not mutually exclusive except "select"). This analysis was done on v1, with the baseline columns from the original prompts; the last column adds v2's combined result:
 
 | category | n | zero-shot | few-shot | fine-tuned (v1) | fine-tuned + few-shot (v1) | fine-tuned + few-shot (v2) |
 |---|---|---|---|---|---|---|
@@ -146,6 +152,6 @@ The project demonstrates, with measurements rather than assumptions at every ste
 
 Along the way, a mid-project model-size pivot (7B → 3B) showed the concrete difference between a single-step VRAM measurement and real, sustained training behavior on a resource (BAR1 memory) the quick check never exercised — a useful cautionary example for anyone reproducing this on similarly VRAM-constrained hardware.
 
-The v2 revision added two lessons about checkpoint selection. Token-level eval_loss and execution accuracy disagreed badly on this task, so checkpoints should be chosen by execution accuracy. And a dev set with only 20 databases can make a checkpoint look significantly better than it is, especially when it is the best of several candidates: v2's 3-point zero-shot lead over v1 on dev disappeared on test (71.7% vs. 71.9%).
+The v2 revision added two lessons about checkpoint selection. Token-level eval_loss and execution accuracy disagreed badly on this task, so checkpoints should be chosen by execution accuracy. And a dev set with only 20 databases can make a checkpoint look significantly better than it is, especially when it is the best of several candidates: v2's 3-point zero-shot lead over v1 on dev disappeared on test (71.7% vs. 71.9%). It also surfaced an evaluation detail worth copying for anyone building a few-shot setup on Spider: exclude demonstrations by their gold SQL, not just by question text, or paraphrases leak the answer.
 
 **If pushing accuracy further were the next step**, the error analysis points at a specific, high-value target rather than a diffuse one: join queries are the weakest category everywhere and the largest by volume, so schema-linking-focused improvements (or simply more join-heavy training data) would likely move the overall number more than further generic training. Given diminishing returns are already visible in this project's own research on the effort required to push past ~80-82% on Spider (schema linking, self-consistency, ensembling), the honest scoping decision made here was to treat 77.4% — a clear, well-explained improvement over both baselines — as a complete result rather than chase the last few points.
