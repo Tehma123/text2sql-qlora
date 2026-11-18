@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SQLocal M0 Spike</title>
+<style>
+  :root { --bg: #fff; --fg: #1a1a1a; --muted: #666; --ok: #0a7d32; --err: #b3261e; --code: #f4f4f4; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #151515; --fg: #e8e8e8; --muted: #999; --ok: #5bd17f; --err: #ff8a80; --code: #222; } }
+  body { background: var(--bg); color: var(--fg); font: 14px/1.5 system-ui, sans-serif; margin: 0 auto; max-width: 960px; padding: 16px; }
+  pre { background: var(--code); padding: 8px; white-space: pre-wrap; word-break: break-word; }
+  .muted { color: var(--muted); } .ok { color: var(--ok); } .err { color: var(--err); }
+</style>
+</head>
+<body>
+<h1>SQLocal M0 spike</h1>
+<p class="muted">Loads an exported ONNX model with Transformers.js on WebGPU and times generation on a few dev questions.
+Query params: <code>model</code> (default onnx-600-genai), <code>dtype</code> (default q4f16), <code>n</code> (default all prompts).</p>
+<pre id="log"></pre>
+<script type="module">
+import { AutoTokenizer, AutoModelForCausalLM, TextStreamer, env } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2";
+
+const params = new URLSearchParams(location.search);
+const MODEL = params.get("model") ?? "onnx-600-genai";
+const DTYPE = params.get("dtype") ?? "q4f16";
+const N = params.get("n") ? +params.get("n") : Infinity;
+
+const logEl = document.getElementById("log");
+const log = (msg, cls) => {
+  const line = document.createElement("div");
+  if (cls) line.className = cls;
+  line.textContent = msg;
+  logEl.appendChild(line);
+  console.log(msg);
+};
+const report = { model: MODEL, dtype: DTYPE, done: false, error: null, results: [] };
+window.__spike = report;
+
+try {
+  env.allowRemoteModels = false;
+  env.allowLocalModels = true;
+  env.localModelPath = "/models/";
+
+  if (!navigator.gpu) throw new Error("navigator.gpu is undefined: WebGPU not available");
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) throw new Error("requestAdapter() returned null");
+  const info = adapter.info ?? {};
+  report.adapter = { vendor: info.vendor, architecture: info.architecture, description: info.description,
+                     shader_f16: adapter.features.has("shader-f16") };
+  log(`WebGPU adapter: ${JSON.stringify(report.adapter)}`);
+
+  const prompts = (await (await fetch("prompts.json")).json()).slice(0, N);
+
+  let t0 = performance.now();
+  const tokenizer = await AutoTokenizer.from_pretrained(MODEL);
+  let lastPct = -10;
+  const model = await AutoModelForCausalLM.from_pretrained(MODEL, {
+    dtype: DTYPE,
+    device: "webgpu",
+    use_external_data_format: true,
+    progress_callback: (p) => {
+      if (p.status === "progress" && p.file?.endsWith("_data") && p.progress - lastPct >= 10) {
+        lastPct = p.progress;
+        log(`  loading ${p.file}: ${p.progress.toFixed(0)}%`, "muted");
+      }
+    },
+  });
+  report.load_ms = performance.now() - t0;
+  log(`Model loaded in ${(report.load_ms / 1000).toFixed(1)} s`, "ok");
+
+  for (const [i, ex] of prompts.entries()) {
+    const inputs = tokenizer.apply_chat_template(ex.messages, { add_generation_prompt: true, return_dict: true });
+    const promptTokens = inputs.input_ids.dims.at(-1);
+    let ttft = null;
+    const start = performance.now();
+    const streamer = new TextStreamer(tokenizer, {
+      skip_prompt: true,
+      callback_function: () => { if (ttft === null) ttft = performance.now() - start; },
+    });
+    const out = await model.generate({ ...inputs, max_new_tokens: 256, do_sample: false, streamer });
+    const total = performance.now() - start;
+    const newIds = out.slice(null, [promptTokens, null]);
+    const genTokens = newIds.dims.at(-1);
+    const sql = tokenizer.batch_decode(newIds, { skip_special_tokens: true })[0].trim();
+    const match = sql.replace(/;\s*$/, "") === ex.reference_pred;
+    report.results.push({ i, prompt_tokens: promptTokens, gen_tokens: genTokens, ttft_ms: ttft, total_ms: total, sql,
+                          reference_pred: ex.reference_pred, same_as_reference: match });
+    log(`[${i}] prompt=${promptTokens} tok, gen=${genTokens} tok, TTFT=${ttft?.toFixed(0)} ms, total=${total.toFixed(0)} ms, ` +
+        `${(genTokens / (total / 1000)).toFixed(1)} tok/s, same SQL as onnxruntime-CUDA: ${match}`, match ? "ok" : "err");
+    log(`    ${sql}`);
+  }
+} catch (e) {
+  report.error = String(e?.stack ?? e);
+  log(`ERROR: ${report.error}`, "err");
+} finally {
+  report.done = true;
+}
+</script>
+</body>
+</html>
