@@ -1,6 +1,11 @@
 # Core ML stack
+# Install torch/torchvision from the PyTorch CUDA index first, e.g.
+#   pip install torch==2.14.1 torchvision==0.29.1 --index-url https://download.pytorch.org/whl/cu132
+# A plain `pip install -r requirements.txt` on a fresh venv pulls the CPU-only
+# torch wheel from PyPI, and Unsloth then refuses to start ("only works on
+# NVIDIA GPUs"). unsloth 2026.11.6 below requires torch<2.15.
 torch
-transformers
+transformers==4.57.6
 # transformers 4.57.6 requires huggingface-hub<1.0; pinned explicitly (not just
 # left as a transitive resolution) because gradio's own cap on huggingface-hub
 # is inconsistent across releases -- 5.44.0-5.47.x declare <1.0, but 5.48.0+
@@ -13,8 +18,12 @@ peft
 accelerate
 
 # QLoRA fine-tuning
-unsloth
-trl
+# Pinned to the versions the v2 retrain (2026-11-18) ran with. Left unpinned,
+# the resolver picked unsloth 2025.7.2 next to trl 1.18, and `import unsloth`
+# failed (trl removed ConstantLengthDataset).
+unsloth==2026.11.6
+unsloth-zoo==2026.11.6
+trl==1.15.0
 bitsandbytes
 # unsloth imports this even though it's not declared as a hard dependency --
 # without it, `import unsloth` fails outright. Install from the same CUDA
