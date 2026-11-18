@@ -50,6 +50,23 @@ gdown
 # Evaluation (exact-match SQL normalization)
 sqlglot
 
+# ONNX export for the browser (scripts/merge_adapter.py, scripts/export_onnx.py)
+# The graph builder, onnxruntime-genai==0.20.0, must be installed separately
+# with `pip install --no-deps onnxruntime-genai==0.20.0`: its dependency on the
+# CPU `onnxruntime` package overwrites onnxruntime-gpu (same import name) and
+# breaks the CUDA verification run.
+optimum[onnx]
+onnx
+onnx-ir
+onnxruntime-gpu
+
+# Browser spike driver (web/spike/run_spike.py); drives an installed
+# Edge/Chrome, so no `playwright install` is needed
+playwright
+
+# Tests
+pytest
+
 # Notebook exploration (notebooks/01_explore_spider.ipynb)
 jupyter
 ipykernel
