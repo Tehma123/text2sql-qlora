@@ -2,9 +2,11 @@
 
 Serves web/app/ (or uses --url, e.g. the GitHub Pages deployment), opens it in
 Edge/Chrome via Playwright, loads the model from the HF Hub, then:
-  1. loads the sample CSV and asks the sample questions;
+  1. loads the sample CSV and asks 10 questions;
   2. checks that a non-SELECT query typed by hand is blocked;
-  3. uploads a CSV with spaces and accents in its column names and asks about it.
+  3. uploads a CSV with spaces and accents in its column names and asks 2 questions.
+Each answer is compared with the expected rows, computed independently from
+the CSV (see SAMPLE_CHECKS), so the run also measures answer accuracy.
 
     python web/e2e/run_app.py [--url https://...] [--model 3b] [--profile DIR] [--headless]
 
@@ -28,15 +30,57 @@ E2E_DIR = Path(__file__).resolve().parent
 APP_DIR = E2E_DIR.parent / "app"
 MODEL_INDEX = {"1.5b": 0, "3b": 1}
 
-ACCENT_QUESTIONS = [
-    "What is the total revenue in each city?",
-    "Which customer has the highest revenue?",
+# (question, accepted answers). An answer is a list of rows; a result matches
+# when it has the same number of rows and each expected row's values appear in
+# a different result row (extra columns such as the summed value are fine, and
+# row order is ignored). Values use the app's formatting (2697.0 -> "2697").
+SAMPLE_CHECKS = [
+    ("What is the total revenue for each region?",
+     [[["East", "33383.5"], ["South", "45050"], ["North", "37503.5"], ["West", "35295.5"]]]),
+    ("Which 3 products sold the most units?", [[["Pen Set"], ["Keyboard"], ["Backpack"]]]),
+    ("How many orders came from new customers?", [[["120"]]]),
+    ("What is the average order revenue per category?",
+     [[["Furniture", "462.9787"], ["Electronics", "827.2288"], ["Stationery", "114.767"]]]),
+    ("How many orders were placed in March 2024?", [[["46"]]]),
+    ("What was the total revenue for each month?",
+     [[["2024-01", "20357.5"], ["2024-02", "24672"], ["2024-03", "30114"], ["2024-04", "17088.5"],
+       ["2024-05", "33187.5"], ["2024-06", "25813"]]]),
+    ("Which region had the highest total revenue from Furniture?", [[["South"]]]),
+    ("What is the largest single order revenue?", [[["2697"]]]),
+    ("What percentage of orders are from returning customers?", [[["60"]], [["0.6"]]]),
+    ("How many different products were sold in the West region?", [[["10"]]]),
 ]
+ACCENT_CHECKS = [
+    ("What is the total revenue in each city?", [[["Hà Nội", "1650000"], ["Đà Nẵng", "800000"], ["TP HCM", "3290000"]]]),
+    ("Which customer has the highest revenue?", [[["Dũng"]]]),
+]
+
+
+def matches(rows, accepted) -> bool:
+    if rows is None:
+        return False
+    for expected in accepted:
+        if len(rows) != len(expected):
+            continue
+        free = [list(r) for r in rows]
+        for exp in expected:
+            hit = next((r for r in free if all(v in r for v in exp)), None)
+            if hit is None:
+                break
+            free.remove(hit)
+        else:
+            return True
+    return False
 
 
 class QuietHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *args):
         pass
+
+    def end_headers(self):
+        # A reused --profile would otherwise keep running the previous app.js.
+        self.send_header("Cache-Control", "no-store")
+        super().end_headers()
 
 
 def serve(port: int) -> http.server.ThreadingHTTPServer:
@@ -85,13 +129,22 @@ def ask(page, question: str) -> dict:
             attempts: s.lastAsk.attempts,
             ok: !!r && document.getElementById('error').hidden,
             columns: r?.columns ?? null,
-            rows: r ? r.rows.slice(0, 5) : null,
+            rows: r ? r.rows.slice(0, 50) : null,
             total_rows: r?.total ?? null,
             status: document.getElementById('result-status').textContent,
             error: document.getElementById('error').hidden ? null : document.getElementById('error').textContent,
           };
         }"""
     )
+
+
+def check(page, report: dict, data: str, question: str, accepted) -> None:
+    r = ask(page, question)
+    r["correct"] = matches(r["rows"] if r["ok"] else None, accepted)
+    report["questions"].append({"data": data, **r})
+    verdict = "correct" if r["correct"] else ("WRONG" if r["ok"] else "ERROR")
+    shown = r["rows"][:3] if r["rows"] else r["error"]
+    print(f"[{verdict}] {question}\n    {r['attempts'][-1]['sql']}\n    rows={r['total_rows']} {shown}", flush=True)
 
 
 def main():
@@ -145,11 +198,8 @@ def main():
         page.click("#sample-load")
         wait_for(page, "window.__sqlocal.table === 'sales'", 60, "sample load")
         report["sample_status"] = page.text_content("#data-status")
-        questions = page.eval_on_selector_all("#examples button", "els => els.map(e => e.textContent)")
-        for q in questions:
-            r = ask(page, q)
-            report["questions"].append({"data": "sample", **r})
-            print(f"[{'ok' if r['ok'] else 'FAIL'}] {q} -> {r['attempts'][-1]['sql']} | rows={r['total_rows']} {r['rows'][:3] if r['rows'] else r['error']}", flush=True)
+        for q, accepted in SAMPLE_CHECKS:
+            check(page, report, "sample", q, accepted)
 
         # 2. Hand-typed non-SELECT is blocked.
         page.fill("#sql", "DELETE FROM sales")
@@ -168,10 +218,8 @@ def main():
             wait_for(page, "window.__sqlocal.table && window.__sqlocal.table !== 'sales'", 60, "accent CSV load")
         report["accent_status"] = page.text_content("#data-status")
         report["accent_schema"] = page.evaluate("window.__sqlocal.schema")
-        for q in ACCENT_QUESTIONS:
-            r = ask(page, q)
-            report["questions"].append({"data": "accent", **r})
-            print(f"[{'ok' if r['ok'] else 'FAIL'}] {q} -> {r['attempts'][-1]['sql']} | rows={r['total_rows']} {r['rows'][:3] if r['rows'] else r['error']}", flush=True)
+        for q, accepted in ACCENT_CHECKS:
+            check(page, report, "accent", q, accepted)
 
         (E2E_DIR / "results").mkdir(exist_ok=True)
         page.screenshot(path=str(E2E_DIR / "results" / f"{label}.png"), full_page=True)
@@ -180,10 +228,16 @@ def main():
         server.shutdown()
     tmp.cleanup()
 
+    qs = report["questions"]
+    report["summary"] = {
+        "questions": len(qs),
+        "ran": sum(q["ok"] for q in qs),
+        "correct": sum(q["correct"] for q in qs),
+        "fixed_by_repair": sum(q["correct"] and len(q["attempts"]) > 1 for q in qs),
+    }
     out = E2E_DIR / "results" / f"{label}.json"
     out.write_text(json.dumps(report, indent=1, ensure_ascii=False), encoding="utf-8")
-    ok = sum(q["ok"] for q in report["questions"])
-    print(f"{ok}/{len(report['questions'])} questions returned a result; wrote {out}")
+    print(f"summary: {report['summary']}; wrote {out}")
 
 
 if __name__ == "__main__":

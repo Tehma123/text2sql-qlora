@@ -9,8 +9,8 @@
     {
      "sql": "SELECT sum(revenue) ,  region FROM sales GROUP BY region",
      "error": null,
-     "ttftMs": 601.5,
-     "totalMs": 1073.300000000745
+     "ttftMs": 520.3999999985099,
+     "totalMs": 770.5
     }
    ],
    "ok": true,
@@ -37,8 +37,9 @@
     ]
    ],
    "total_rows": 4,
-   "status": "SQL written in 1.1 s · ran in 10 ms · 4 rows.",
-   "error": null
+   "status": "SQL written in 0.8 s · ran in 12 ms · 4 rows.",
+   "error": null,
+   "correct": true
   },
   {
    "data": "sample",
@@ -47,8 +48,8 @@
     {
      "sql": "SELECT product FROM sales GROUP BY product ORDER BY sum(quantity) DESC LIMIT 3",
      "error": null,
-     "ttftMs": 485.80000000074506,
-     "totalMs": 903.6999999992549
+     "ttftMs": 247.10000000149012,
+     "totalMs": 512.8000000007451
     }
    ],
    "ok": true,
@@ -67,8 +68,9 @@
     ]
    ],
    "total_rows": 3,
-   "status": "SQL written in 0.9 s · ran in 6 ms · 3 rows.",
-   "error": null
+   "status": "SQL written in 0.5 s · ran in 6 ms · 3 rows.",
+   "error": null,
+   "correct": true
   },
   {
    "data": "sample",
@@ -77,8 +79,8 @@
     {
      "sql": "SELECT count(*) FROM sales WHERE customer_type  =  'New'",
      "error": null,
-     "ttftMs": 445.4000000022352,
-     "totalMs": 821.9000000022352
+     "ttftMs": 266.3999999985099,
+     "totalMs": 476.0999999977648
     }
    ],
    "ok": true,
@@ -91,8 +93,9 @@
     ]
    ],
    "total_rows": 1,
-   "status": "SQL written in 0.8 s · ran in 8 ms · 1 row.",
-   "error": null
+   "status": "SQL written in 0.5 s · ran in 6 ms · 1 row.",
+   "error": null,
+   "correct": true
   },
   {
    "data": "sample",
@@ -101,8 +104,8 @@
     {
      "sql": "SELECT avg(revenue) ,  category FROM sales GROUP BY category",
      "error": null,
-     "ttftMs": 484.79999999701977,
-     "totalMs": 805
+     "ttftMs": 246.40000000223517,
+     "totalMs": 441.19999999925494
     }
    ],
    "ok": true,
@@ -125,8 +128,181 @@
     ]
    ],
    "total_rows": 3,
-   "status": "SQL written in 0.8 s · ran in 2 ms · 3 rows.",
-   "error": null
+   "status": "SQL written in 0.4 s · ran in 2 ms · 3 rows.",
+   "error": null,
+   "correct": true
+  },
+  {
+   "data": "sample",
+   "question": "How many orders were placed in March 2024?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) FROM sales WHERE CAST(order_date AS VARCHAR) ILIKE '2024-03%'",
+     "error": null,
+     "ttftMs": 255.59999999776483,
+     "totalMs": 557.0999999977648
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count_star()"
+   ],
+   "rows": [
+    [
+     "46"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.6 s · ran in 5 ms · 1 row.",
+   "error": null,
+   "correct": true
+  },
+  {
+   "data": "sample",
+   "question": "What was the total revenue for each month?",
+   "attempts": [
+    {
+     "sql": "SELECT sum(revenue) ,  strftime('%Y-%m', order_date) FROM sales GROUP BY strftime('%Y-%m', order_date)",
+     "error": null,
+     "ttftMs": 253.19999999925494,
+     "totalMs": 718.1999999992549
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "sum(revenue)",
+    "strftime('%Y-%m', order_date)"
+   ],
+   "rows": [
+    [
+     "20357.5",
+     "2024-01"
+    ],
+    [
+     "24672",
+     "2024-02"
+    ],
+    [
+     "30114",
+     "2024-03"
+    ],
+    [
+     "17088.5",
+     "2024-04"
+    ],
+    [
+     "33187.5",
+     "2024-05"
+    ],
+    [
+     "25813",
+     "2024-06"
+    ]
+   ],
+   "total_rows": 6,
+   "status": "SQL written in 0.7 s · ran in 3 ms · 6 rows.",
+   "error": null,
+   "correct": true
+  },
+  {
+   "data": "sample",
+   "question": "Which region had the highest total revenue from Furniture?",
+   "attempts": [
+    {
+     "sql": "SELECT region FROM sales WHERE category  =  'Furniture' GROUP BY region ORDER BY sum(revenue) DESC LIMIT 1",
+     "error": null,
+     "ttftMs": 263.3999999985099,
+     "totalMs": 686.7999999970198
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "region"
+   ],
+   "rows": [
+    [
+     "South"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.7 s · ran in 2 ms · 1 row.",
+   "error": null,
+   "correct": true
+  },
+  {
+   "data": "sample",
+   "question": "What is the largest single order revenue?",
+   "attempts": [
+    {
+     "sql": "SELECT max(revenue) FROM sales",
+     "error": null,
+     "ttftMs": 244.70000000298023,
+     "totalMs": 340.80000000074506
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "max(revenue)"
+   ],
+   "rows": [
+    [
+     "2697"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.3 s · ran in 2 ms · 1 row.",
+   "error": null,
+   "correct": true
+  },
+  {
+   "data": "sample",
+   "question": "What percentage of orders are from returning customers?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) * 100 / ( SELECT count(*) FROM sales WHERE customer_type  =  'Returning' ) FROM sales",
+     "error": null,
+     "ttftMs": 254,
+     "totalMs": 709
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "((count_star() * 100) / (SELECT count_star() FROM sales WHERE (customer_type = 'Returning')))"
+   ],
+   "rows": [
+    [
+     "166.6667"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.7 s · ran in 10 ms · 1 row.",
+   "error": null,
+   "correct": false
+  },
+  {
+   "data": "sample",
+   "question": "How many different products were sold in the West region?",
+   "attempts": [
+    {
+     "sql": "SELECT count(DISTINCT product) FROM sales WHERE region  =  'West'",
+     "error": null,
+     "ttftMs": 253.60000000149012,
+     "totalMs": 516.9000000022352
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count(DISTINCT product)"
+   ],
+   "rows": [
+    [
+     "10"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.5 s · ran in 3 ms · 1 row.",
+   "error": null,
+   "correct": true
   },
   {
    "data": "accent",
@@ -135,8 +311,8 @@
     {
      "sql": "SELECT sum(doanh_thu_vnd) ,  thanh_pho FROM khach_hang GROUP BY thanh_pho",
      "error": null,
-     "ttftMs": 408,
-     "totalMs": 1163.8999999985099
+     "ttftMs": 216.80000000074506,
+     "totalMs": 650.3999999985099
     }
    ],
    "ok": true,
@@ -159,8 +335,9 @@
     ]
    ],
    "total_rows": 3,
-   "status": "SQL written in 1.2 s · ran in 12 ms · 3 rows.",
-   "error": null
+   "status": "SQL written in 0.7 s · ran in 9 ms · 3 rows.",
+   "error": null,
+   "correct": true
   },
   {
    "data": "accent",
@@ -169,8 +346,8 @@
     {
      "sql": "SELECT ten_khach_hang FROM khach_hang ORDER BY doanh_thu_vnd DESC LIMIT 1",
      "error": null,
-     "ttftMs": 412.19999999925494,
-     "totalMs": 985.6000000014901
+     "ttftMs": 204.69999999925494,
+     "totalMs": 604.8999999985099
     }
    ],
    "ok": true,
@@ -183,16 +360,23 @@
     ]
    ],
    "total_rows": 1,
-   "status": "SQL written in 1.0 s · ran in 21 ms · 1 row.",
-   "error": null
+   "status": "SQL written in 0.6 s · ran in 22 ms · 1 row.",
+   "error": null,
+   "correct": true
   }
  ],
  "model_was_cached": true,
- "model_load_s": 2.5,
- "model_status": "Model ready (loaded in 3.2 s). It is saved in your browser for next time.",
+ "model_load_s": 1.5,
+ "model_status": "Model ready (loaded in 2.3 s). It is saved in your browser for next time.",
  "sample_status": "Loaded table sales: 300 rows, 9 columns.",
  "delete_blocked": "Only SELECT queries can be run (the query must start with SELECT or WITH).",
  "rows_after_delete_attempt": 300,
  "accent_status": "Loaded table khach_hang: 5 rows, 4 columns. 4 column names were simplified for SQL (see below).",
- "accent_schema": "CREATE TABLE \"khach_hang\" (\n  \"ten_khach_hang\" TEXT,\n  \"thanh_pho\" TEXT,\n  \"doanh_thu_vnd\" NUMBER,\n  \"ngay_mua\" TIME\n);\n\n/* 3 example rows from \"khach_hang\":\nten_khach_hang | thanh_pho | doanh_thu_vnd | ngay_mua\nAn | Hà Nội | 1200000 | 2024-03-01\nBình | Đà Nẵng | 800000 | 2024-03-02\nChi | Hà Nội | 450000 | 2024-03-05\n*/"
+ "accent_schema": "CREATE TABLE \"khach_hang\" (\n  \"ten_khach_hang\" TEXT,\n  \"thanh_pho\" TEXT,\n  \"doanh_thu_vnd\" NUMBER,\n  \"ngay_mua\" TIME\n);\n\n/* 3 example rows from \"khach_hang\":\nten_khach_hang | thanh_pho | doanh_thu_vnd | ngay_mua\nAn | Hà Nội | 1200000 | 2024-03-01\nBình | Đà Nẵng | 800000 | 2024-03-02\nChi | Hà Nội | 450000 | 2024-03-05\n*/",
+ "summary": {
+  "questions": 12,
+  "ran": 12,
+  "correct": 11,
+  "fixed_by_repair": 0
+ }
 }

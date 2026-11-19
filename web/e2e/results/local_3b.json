@@ -9,8 +9,8 @@
     {
      "sql": "SELECT sum(revenue) ,  region FROM sales GROUP BY region",
      "error": null,
-     "ttftMs": 913.5,
-     "totalMs": 1393.300000000745
+     "ttftMs": 742.3000000007451,
+     "totalMs": 1061
     }
    ],
    "ok": true,
@@ -37,8 +37,9 @@
     ]
    ],
    "total_rows": 4,
-   "status": "SQL written in 1.4 s · ran in 9 ms · 4 rows.",
-   "error": null
+   "status": "SQL written in 1.1 s · ran in 9 ms · 4 rows.",
+   "error": null,
+   "correct": true
   },
   {
    "data": "sample",
@@ -47,8 +48,8 @@
     {
      "sql": "SELECT product FROM sales GROUP BY product ORDER BY sum(quantity) DESC LIMIT 3",
      "error": null,
-     "ttftMs": 744.3999999985099,
-     "totalMs": 1299.5999999977648
+     "ttftMs": 436.69999999925494,
+     "totalMs": 807.8999999985099
     }
    ],
    "ok": true,
@@ -67,8 +68,9 @@
     ]
    ],
    "total_rows": 3,
-   "status": "SQL written in 1.3 s · ran in 9 ms · 3 rows.",
-   "error": null
+   "status": "SQL written in 0.8 s · ran in 6 ms · 3 rows.",
+   "error": null,
+   "correct": true
   },
   {
    "data": "sample",
@@ -77,8 +79,8 @@
     {
      "sql": "SELECT count(*) FROM sales WHERE customer_type  =  'New'",
      "error": null,
-     "ttftMs": 771.4000000022352,
-     "totalMs": 1245.9000000022352
+     "ttftMs": 403.30000000074506,
+     "totalMs": 700.0999999977648
     }
    ],
    "ok": true,
@@ -91,8 +93,9 @@
     ]
    ],
    "total_rows": 1,
-   "status": "SQL written in 1.2 s · ran in 7 ms · 1 row.",
-   "error": null
+   "status": "SQL written in 0.7 s · ran in 6 ms · 1 row.",
+   "error": null,
+   "correct": true
   },
   {
    "data": "sample",
@@ -101,8 +104,8 @@
     {
      "sql": "SELECT avg(revenue) ,  category FROM sales GROUP BY category",
      "error": null,
-     "ttftMs": 736.8000000007451,
-     "totalMs": 1139.300000000745
+     "ttftMs": 419.8999999985099,
+     "totalMs": 693.3000000007451
     }
    ],
    "ok": true,
@@ -125,8 +128,187 @@
     ]
    ],
    "total_rows": 3,
-   "status": "SQL written in 1.1 s · ran in 2 ms · 3 rows.",
-   "error": null
+   "status": "SQL written in 0.7 s · ran in 2 ms · 3 rows.",
+   "error": null,
+   "correct": true
+  },
+  {
+   "data": "sample",
+   "question": "How many orders were placed in March 2024?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) FROM sales WHERE CAST(order_date AS VARCHAR) ILIKE '2024-03%'",
+     "error": null,
+     "ttftMs": 409.3999999985099,
+     "totalMs": 839.3000000007451
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count_star()"
+   ],
+   "rows": [
+    [
+     "46"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.8 s · ran in 3 ms · 1 row.",
+   "error": null,
+   "correct": true
+  },
+  {
+   "data": "sample",
+   "question": "What was the total revenue for each month?",
+   "attempts": [
+    {
+     "sql": "SELECT sum(revenue) ,  strftime('%Y-%m', order_date) FROM sales GROUP BY strftime('%Y-%m', order_date)",
+     "error": null,
+     "ttftMs": 410.5999999977648,
+     "totalMs": 1064.3999999985099
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "sum(revenue)",
+    "strftime('%Y-%m', order_date)"
+   ],
+   "rows": [
+    [
+     "20357.5",
+     "2024-01"
+    ],
+    [
+     "24672",
+     "2024-02"
+    ],
+    [
+     "30114",
+     "2024-03"
+    ],
+    [
+     "17088.5",
+     "2024-04"
+    ],
+    [
+     "33187.5",
+     "2024-05"
+    ],
+    [
+     "25813",
+     "2024-06"
+    ]
+   ],
+   "total_rows": 6,
+   "status": "SQL written in 1.1 s · ran in 3 ms · 6 rows.",
+   "error": null,
+   "correct": true
+  },
+  {
+   "data": "sample",
+   "question": "Which region had the highest total revenue from Furniture?",
+   "attempts": [
+    {
+     "sql": "SELECT region FROM sales WHERE category  =  'Furniture' GROUP BY region ORDER BY sum(revenue) DESC LIMIT 1",
+     "error": null,
+     "ttftMs": 414,
+     "totalMs": 1003.8999999985099
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "region"
+   ],
+   "rows": [
+    [
+     "South"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.0 s · ran in 2 ms · 1 row.",
+   "error": null,
+   "correct": true
+  },
+  {
+   "data": "sample",
+   "question": "What is the largest single order revenue?",
+   "attempts": [
+    {
+     "sql": "SELECT max(revenue) FROM sales",
+     "error": null,
+     "ttftMs": 405.19999999925494,
+     "totalMs": 574.6999999992549
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "max(revenue)"
+   ],
+   "rows": [
+    [
+     "2697"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.6 s · ran in 2 ms · 1 row.",
+   "error": null,
+   "correct": true
+  },
+  {
+   "data": "sample",
+   "question": "What percentage of orders are from returning customers?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) FROM sales WHERE customer_type  =  'Returning' / ( SELECT count(*) FROM sales ) * 100",
+     "error": "Binder Error: Could not choose a best candidate function for the function call \"/(STRING_LITERAL, BIGINT)\". In order to select one, please add explicit type casts.\n\tCandidate functions:\n\t/(INTERVAL, DOUBLE) -> INTERVAL\n\t/(DOUBLE, DOUBLE) -> DOUBLE\n\n\nLINE 1: ... count(*) FROM sales WHERE customer_type  =  'Returning' / ( SELECT count(*) FROM sales ) * 100\n                                                                    ^",
+     "ttftMs": 425.5,
+     "totalMs": 1009.9000000022352
+    },
+    {
+     "sql": "SELECT count(*) FROM sales WHERE customer_type  =  'Returning' / ( SELECT count(*) FROM sales ) * 100",
+     "error": "Binder Error: Could not choose a best candidate function for the function call \"/(STRING_LITERAL, BIGINT)\". In order to select one, please add explicit type casts.\n\tCandidate functions:\n\t/(INTERVAL, DOUBLE) -> INTERVAL\n\t/(DOUBLE, DOUBLE) -> DOUBLE\n\n\nLINE 1: ... count(*) FROM sales WHERE customer_type  =  'Returning' / ( SELECT count(*) FROM sales ) * 100\n                                                                    ^",
+     "ttftMs": 599.1999999992549,
+     "totalMs": 1245.199999999255
+    },
+    {
+     "sql": "SELECT count(*) FROM sales WHERE customer_type  =  'Returning' / ( SELECT count(*) FROM sales ) * 100",
+     "error": "Binder Error: Could not choose a best candidate function for the function call \"/(STRING_LITERAL, BIGINT)\". In order to select one, please add explicit type casts.\n\tCandidate functions:\n\t/(INTERVAL, DOUBLE) -> INTERVAL\n\t/(DOUBLE, DOUBLE) -> DOUBLE\n\n\nLINE 1: ... count(*) FROM sales WHERE customer_type  =  'Returning' / ( SELECT count(*) FROM sales ) * 100\n                                                                    ^",
+     "ttftMs": 591.5999999977648,
+     "totalMs": 1252.5
+    }
+   ],
+   "ok": false,
+   "columns": null,
+   "rows": null,
+   "total_rows": null,
+   "status": "",
+   "error": "The query still fails after 2 automatic fixes:\nBinder Error: Could not choose a best candidate function for the function call \"/(STRING_LITERAL, BIGINT)\". In order to select one, please add explicit type casts.\n\tCandidate functions:\n\t/(INTERVAL, DOUBLE) -> INTERVAL\n\t/(DOUBLE, DOUBLE) -> DOUBLE\n\n\nLINE 1: ... count(*) FROM sales WHERE customer_type  =  'Returning' / ( SELECT count(*) FROM sales ) * 100\n                                                                    ^\n\nYou can edit the SQL above and press “Run SQL”.",
+   "correct": false
+  },
+  {
+   "data": "sample",
+   "question": "How many different products were sold in the West region?",
+   "attempts": [
+    {
+     "sql": "SELECT count(DISTINCT product) FROM sales WHERE region  =  'West'",
+     "error": null,
+     "ttftMs": 404.6000000014901,
+     "totalMs": 766.9000000022352
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count(DISTINCT product)"
+   ],
+   "rows": [
+    [
+     "10"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.8 s · ran in 3 ms · 1 row.",
+   "error": null,
+   "correct": true
   },
   {
    "data": "accent",
@@ -135,8 +317,8 @@
     {
      "sql": "SELECT sum(doanh_thu_vnd) ,  thanh_pho FROM khach_hang GROUP BY thanh_pho",
      "error": null,
-     "ttftMs": 579.4000000022352,
-     "totalMs": 1521.699999999255
+     "ttftMs": 358.69999999925494,
+     "totalMs": 903
     }
    ],
    "ok": true,
@@ -159,8 +341,9 @@
     ]
    ],
    "total_rows": 3,
-   "status": "SQL written in 1.5 s · ran in 12 ms · 3 rows.",
-   "error": null
+   "status": "SQL written in 0.9 s · ran in 10 ms · 3 rows.",
+   "error": null,
+   "correct": true
   },
   {
    "data": "accent",
@@ -169,8 +352,8 @@
     {
      "sql": "SELECT ten_khach_hang FROM khach_hang WHERE doanh_thu_vnd  =  ( SELECT max(doanh_thu_vnd) FROM khach_hang )",
      "error": null,
-     "ttftMs": 557.8000000007451,
-     "totalMs": 1495.0999999977648
+     "ttftMs": 334.6000000014901,
+     "totalMs": 1177.5
     }
    ],
    "ok": true,
@@ -183,16 +366,23 @@
     ]
    ],
    "total_rows": 1,
-   "status": "SQL written in 1.5 s · ran in 20 ms · 1 row.",
-   "error": null
+   "status": "SQL written in 1.2 s · ran in 18 ms · 1 row.",
+   "error": null,
+   "correct": true
   }
  ],
- "model_was_cached": false,
- "model_load_s": 60.0,
- "model_status": "Model ready (loaded in 59.5 s). It is saved in your browser for next time.",
+ "model_was_cached": true,
+ "model_load_s": 2.5,
+ "model_status": "Model ready (loaded in 3.3 s). It is saved in your browser for next time.",
  "sample_status": "Loaded table sales: 300 rows, 9 columns.",
  "delete_blocked": "Only SELECT queries can be run (the query must start with SELECT or WITH).",
  "rows_after_delete_attempt": 300,
  "accent_status": "Loaded table khach_hang: 5 rows, 4 columns. 4 column names were simplified for SQL (see below).",
- "accent_schema": "CREATE TABLE \"khach_hang\" (\n  \"ten_khach_hang\" TEXT,\n  \"thanh_pho\" TEXT,\n  \"doanh_thu_vnd\" NUMBER,\n  \"ngay_mua\" TIME\n);\n\n/* 3 example rows from \"khach_hang\":\nten_khach_hang | thanh_pho | doanh_thu_vnd | ngay_mua\nAn | Hà Nội | 1200000 | 2024-03-01\nBình | Đà Nẵng | 800000 | 2024-03-02\nChi | Hà Nội | 450000 | 2024-03-05\n*/"
+ "accent_schema": "CREATE TABLE \"khach_hang\" (\n  \"ten_khach_hang\" TEXT,\n  \"thanh_pho\" TEXT,\n  \"doanh_thu_vnd\" NUMBER,\n  \"ngay_mua\" TIME\n);\n\n/* 3 example rows from \"khach_hang\":\nten_khach_hang | thanh_pho | doanh_thu_vnd | ngay_mua\nAn | Hà Nội | 1200000 | 2024-03-01\nBình | Đà Nẵng | 800000 | 2024-03-02\nChi | Hà Nội | 450000 | 2024-03-05\n*/",
+ "summary": {
+  "questions": 12,
+  "ran": 11,
+  "correct": 11,
+  "fixed_by_repair": 0
+ }
 }
