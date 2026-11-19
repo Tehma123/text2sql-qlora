@@ -15,7 +15,7 @@
 <body>
 <h1>SQLocal M0 spike</h1>
 <p class="muted">Loads an exported ONNX model with Transformers.js on WebGPU and times generation on a few dev questions.
-Query params: <code>model</code> (default onnx-600-genai), <code>dtype</code> (default q4f16), <code>n</code> (default all prompts).</p>
+Query params: <code>model</code> (default onnx-600-genai; an <code>owner/name</code> id loads from the HF Hub), <code>dtype</code> (default q4f16), <code>n</code> (default all prompts).</p>
 <pre id="log"></pre>
 <script type="module">
 import { AutoTokenizer, AutoModelForCausalLM, TextStreamer, env } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2";
@@ -37,8 +37,12 @@ const report = { model: MODEL, dtype: DTYPE, done: false, error: null, results: 
 window.__spike = report;
 
 try {
-  env.allowRemoteModels = false;
-  env.allowLocalModels = true;
+  // A Hub repo id ("owner/name") is downloaded from huggingface.co and cached
+  // in the Cache API; a bare name is served by serve.py under /models/.
+  const remote = MODEL.includes("/");
+  report.source = remote ? "hub" : "local";
+  env.allowRemoteModels = remote;
+  env.allowLocalModels = !remote;
   env.localModelPath = "/models/";
 
   if (!navigator.gpu) throw new Error("navigator.gpu is undefined: WebGPU not available");
@@ -67,6 +71,13 @@ try {
   });
   report.load_ms = performance.now() - t0;
   log(`Model loaded in ${(report.load_ms / 1000).toFixed(1)} s`, "ok");
+  if (remote) {
+    const cache = await caches.open("transformers-cache");
+    report.cached_files = (await cache.keys()).map((r) => r.url.split("/resolve/main/")[1] ?? r.url);
+    const est = await navigator.storage.estimate();
+    report.storage = { usage_mb: Math.round(est.usage / 2 ** 20), quota_mb: Math.round(est.quota / 2 ** 20) };
+    log(`Cache API: ${JSON.stringify(report.cached_files)}, storage ${JSON.stringify(report.storage)}`, "muted");
+  }
 
   for (const [i, ex] of prompts.entries()) {
     const inputs = tokenizer.apply_chat_template(ex.messages, { add_generation_prompt: true, return_dict: true });

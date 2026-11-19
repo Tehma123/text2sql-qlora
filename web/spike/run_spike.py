@@ -12,6 +12,7 @@ cached (Cache API) load time. Results go to web/spike/results/<model>_<dtype>.js
 import argparse
 import json
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -46,7 +47,7 @@ def run_page(page, url: str, timeout_s: int) -> dict:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--n", type=int, default=5)
-    parser.add_argument("--model", default="onnx-600-genai")
+    parser.add_argument("--model", default="onnx-600-genai", help="dir served by serve.py, or an owner/name Hub repo id")
     parser.add_argument("--dtype", default="q4f16")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--channel", default="msedge")
@@ -63,21 +64,23 @@ def main():
     write_prompts(args.n, PROJECT_ROOT / args.reference)
     url = f"http://127.0.0.1:{args.port}/?model={args.model}&dtype={args.dtype}&n={args.n}"
     runs = {}
-    with sync_playwright() as p:
-        browser = p.chromium.launch(
-            channel=args.channel, headless=args.headless, args=["--enable-unsafe-webgpu", "--ignore-gpu-blocklist"]
+    # A fresh on-disk profile rather than browser.new_context(): new_context is
+    # incognito-like, and its storage quota is too small to cache a 1.7 GB model.
+    with sync_playwright() as p, tempfile.TemporaryDirectory(prefix="spike-profile-") as profile:
+        context = p.chromium.launch_persistent_context(
+            profile, channel=args.channel, headless=args.headless,
+            args=["--enable-unsafe-webgpu", "--ignore-gpu-blocklist"],
         )
-        context = browser.new_context()
         page = context.new_page()
         page.on("console", lambda m: print(f"[browser] {m.text}", flush=True) if m.type in ("log", "error") else None)
         runs["first_load"] = run_page(page, url, args.timeout)
         if not runs["first_load"].get("error"):
             runs["cached_load"] = run_page(page, url, args.timeout)
-        browser.close()
+        context.close()
 
     out_dir = SPIKE_DIR / "results"
     out_dir.mkdir(exist_ok=True)
-    out = out_dir / f"{args.model}_{args.dtype}.json"
+    out = out_dir / f"{args.model.replace('/', '__')}_{args.dtype}.json"
     out.write_text(json.dumps(runs, indent=1), encoding="utf-8")
     for name, r in runs.items():
         print(f"{name}: load={r.get('load_ms', 0) / 1000:.1f}s error={r.get('error')}")
