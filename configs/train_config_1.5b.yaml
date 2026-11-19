@@ -1,0 +1,44 @@
+# QLoRA fine-tuning config for the 1.5B model (SQLocal's default browser model:
+# Apache-2.0, about half the download of 3B).
+#
+# Every hyperparameter matches configs/train_config.yaml (the 3B v2 run) so the
+# two can be compared on the same data, pipeline and eval set; see that file
+# for why each value was chosen. Only base_model and output_dir differ.
+#
+#   python scripts/train.py --train-config configs/train_config_1.5b.yaml
+
+base_model: Qwen/Qwen2.5-Coder-1.5B-Instruct
+output_dir: checkpoints/1.5b
+
+quantization:
+  load_in_4bit: true
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+
+training:
+  max_seq_length: 1536
+  per_device_train_batch_size: 2
+  gradient_accumulation_steps: 8
+  num_train_epochs: 2
+  # Keep the ".0": PyYAML loads "2e-4" as a string.
+  learning_rate: 2.0e-4
+  lr_scheduler_type: cosine
+  warmup_ratio: 0.03
+  weight_decay: 0.01
+  logging_steps: 10
+  eval_strategy: steps
+  eval_steps: 100
+  save_strategy: steps
+  save_steps: 100
+  # Off, as for 3B: eval_loss is the wrong stopping signal for this task;
+  # checkpoints are picked by dev execution accuracy (scripts/evaluate.py).
+  early_stopping_patience: null
+  optim: adamw_8bit
+
+experiment_tracking:
+  provider: wandb
+  project: text2sql-qlora
