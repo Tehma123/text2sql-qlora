@@ -44,11 +44,18 @@ class Handler(SimpleHTTPRequestHandler):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", nargs="+", default=["checkpoints/v2/onnx-600-genai"], help="model dirs, served as /models/<dir name>/")
+    parser.add_argument(
+        "--model", nargs="+", default=["checkpoints/v2/onnx-600-genai"],
+        help="model dirs, served as /models/<dir name>/; NAME=DIR serves DIR as /models/NAME/",
+    )
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
 
-    model_dirs = {d.name: d for d in ((PROJECT_ROOT / m).resolve() for m in args.model)}
+    model_dirs = {}
+    for m in args.model:
+        name, sep, path = m.partition("=")
+        d = (PROJECT_ROOT / (path if sep else m)).resolve()
+        model_dirs[name if sep else d.name] = d
     handler = functools.partial(Handler, model_dirs=model_dirs)
     server = ThreadingHTTPServer(("127.0.0.1", args.port), handler)
     print(f"Serving http://127.0.0.1:{args.port}/", flush=True)
