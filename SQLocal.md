@@ -168,6 +168,24 @@ Ghi lại ngày 17/11/2026, chưa chạy. Repo vừa clone lại: `checkpoints/`
   | Giấy phép | Qwen Research (phi thương mại) | **Apache 2.0** |
 
   Trên 200 câu, ONNX 1.5B bằng ONNX 3B (64,0%), nhưng mẫu nhỏ và 1.5B chỉ trùng 42% câu SQL với bản adapter của nó, nên con số tin được là 1.034 câu của bản adapter: 1.5B kém 3,7 điểm. Số đo trình duyệt trên RTX 3060; máy yếu hơn chưa đo.
+- [x] **Dọn repo lần 2** (19/11): xoá `checkpoints/1.5b/checkpoint-100`…`500`, `700`, `800` và `checkpoints/v2/checkpoint-500` (kết quả chấm vẫn trong `results/finetuned/`), hai thư mục `merged-600-fp16` (8,7 GB; tạo lại bằng `merge_adapter.py` trong khoảng 5 phút, base fp16 còn trong HF cache), `unsloth_compiled_cache/`, `.pytest_cache/`; tổng cộng khoảng 9,9 GB. Còn giữ mỗi model: `checkpoint-600` (đủ optimizer để train tiếp), `onnx-600-genai` và các log. `vram_check.py` giờ cũng đo theo `base_model` của config thay vì luôn đo bản 3B. README có thêm mục "Browser models" và ghi chú rằng `checkpoint-600` của v2 là bản train lại (dev 75,1% so với 76,4% của bản cũ; số trên test trong README là của bản cũ).
+
+## Việc đã làm cho M2 (MVP)
+
+App chạy tại **https://tehma123.github.io/text2sql-qlora/** (mã ở `web/app/`, deploy bằng `.github/workflows/pages.yml` sau khi test Node pass).
+
+- [x] **App** (20/11): kéo thả hoặc chọn CSV (có nút dữ liệu mẫu 300 đơn hàng, `web/app/sample/sales.csv`, dữ liệu tự tạo), hỏi tiếng Anh, hiện SQL (sửa tay rồi "Run SQL" được), bảng kết quả 100 dòng đầu, xuất CSV đủ dòng. Mặc định model 1.5B; chọn 3B ("High accuracy") trong menu. Model chỉ tải sau khi bấm nút (hiện dung lượng, thanh tiến trình); nếu đã có trong cache thì tự nạp. Gọi `navigator.storage.persist()` và cảnh báo khi quota không đủ (cửa sổ ẩn danh). Không có WebGPU hoặc `shader-f16` thì báo lỗi rõ (chưa có dự phòng WASM: M3).
+- **Khác spec:** model chạy trong một Web Worker riêng (`model-worker.js`), DuckDB-WASM chạy trong worker của chính nó, không gộp chung một worker như mục Kiến trúc; giao diện vẫn không bị đơ. Mỗi file CSV dùng một database mới, và `enable_external_access` tắt ngay sau khi đọc file (SQL sinh ra không đọc được file hay URL nào khác).
+- **Prompt** (`web/app/prompt.js`, test: `node --test web/app/prompt.test.mjs`): schema đúng format lúc train (kiểu NUMBER/TEXT/TIME/BOOLEAN), thêm 3 dòng mẫu dạng comment SQL. Chỉ chạy một câu lệnh SELECT/WITH, không có từ khoá ghi/DDL/cấu hình ngoài chuỗi; tự sửa tối đa 2 lần với lỗi của DuckDB.
+- **Ba vấn đề tìm ra khi chạy thử như người dùng thật, đã sửa:**
+  1. Tên cột có dấu hoặc khoảng trắng ("Doanh thu (VND)"): model viết không có ngoặc kép (`sum(doanh thu(VND))`), tự sửa cũng không cứu được, vì Spider không có tên như vậy. Đặt ngoặc kép trong schema (như spec ghi) là chưa đủ. Giờ cột khó được đổi thành tên snake_case không dấu lúc nạp file (`doanh_thu_vnd`); bảng kết quả và CSV xuất ra vẫn dùng tên gốc.
+  2. Model viết chuỗi trong ngoặc kép (`category = "Furniture"`), kiểu SQLite của Spider; DuckDB hiểu đó là tên cột. `sqliteCompat` đổi `"x"` không phải tên bảng/cột/alias thành `'x'`, đúng như SQLite tự làm.
+  3. `order_date LIKE '2024-03%'` chạy được trên SQLite (ngày là chuỗi) nhưng DuckDB báo lỗi; và `LIKE` của SQLite không phân biệt hoa thường còn DuckDB thì có. `sqliteCompat` đổi `LIKE` thành `ILIKE` và ép cột không phải chữ sang text trước `LIKE`.
+- [x] **Test như người dùng thật** (`python web/e2e/run_app.py [--url ...] [--model 3b]`): Playwright mở trang, bấm tải model, nạp dữ liệu mẫu, hỏi 10 câu, thử gõ `DELETE` (bị chặn, bảng vẫn đủ 300 dòng), tải lên một CSV tên cột tiếng Việt và hỏi 2 câu. Đáp án được so với kết quả tính độc lập từ file CSV (`SAMPLE_CHECKS`), kết quả trong `web/e2e/results/`.
+  - Trên GitHub Pages, profile trống: model 1.5B sẵn sàng sau **29 s** (tải 877 MB từ Hub), **11/12 câu đúng**. Chạy local: 1.5B 11/12, 3B 11/12.
+  - Câu sai ở cả hai: "What percentage of orders are from returning customers?" (1.5B ra 166,7% do đảo tử và mẫu; 3B viết SQL lỗi, tự sửa 2 lần vẫn lặp lại).
+  - **Giới hạn:** 12 câu do mình viết, trên dữ liệu đơn giản, nên chỉ là kiểm tra đường đi chứ chưa phải số đo accuracy. Với cách hỏi khác, lỗi hiểu nghĩa dễ gặp hơn: "highest revenue from Furniture" (không có "total") làm 1.5B lọc nhầm cột `product` và trả 0 dòng; "never sold in the West" ra `region != 'West'` thay vì `NOT IN`. Đây là lý do app luôn hiện SQL. Bộ 50 câu trên 5 CSV thật (M4) mới cho con số tin được.
+- Còn thiếu so với spec (M3): dự phòng WASM cho máy không có WebGPU, biểu đồ, gợi ý giá trị thật khi ra 0 dòng, dòng diễn giải SQL. M0 vẫn thiếu số đo trên máy thứ hai (laptop không GPU rời).
 
 ## Rủi ro & câu hỏi mở
 

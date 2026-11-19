@@ -16,6 +16,7 @@
 - [Evaluation](#evaluation)
 - [Results](#results)
 - [Demo](#demo)
+- [Browser models](#browser-models)
 - [Success Criteria](#success-criteria)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
@@ -147,6 +148,31 @@ python demo/app.py
 
 Loads `checkpoints/v2/checkpoint-600` and serves a local Gradio UI (default `http://127.0.0.1:7860`): pick one of 6 curated held-out databases, see its schema and real example questions from that database, and ask your own question — generated live using the fine-tuned model + few-shot combination above (the 77.4% row), with the SQL executed against the real SQLite file so you see actual query results, not just generated text.
 
+Note: `checkpoints/v2/checkpoint-600` was retrained on 2026-11-18 with the same config (the original adapter was lost with the old clone). The retrained checkpoint scores 75.1% dev execution accuracy zero-shot, vs. 76.4% for the original; the test-split numbers in [Results](#results) were measured on the original and have not been re-run.
+
+## Browser models
+
+The fine-tuned adapters are also merged and exported to q4f16 ONNX for in-browser inference with Transformers.js on WebGPU. They power **[SQLocal](https://tehma123.github.io/text2sql-qlora/)**: drop a CSV file, ask a question in English, and get the SQL and the result table, with the model and DuckDB-WASM running entirely in the browser (Chrome or Edge on desktop with WebGPU; code in [`web/app/`](web/app/), spec and log in [`SQLocal.md`](SQLocal.md)).
+
+| | Dev execution accuracy | Download | Speed (RTX 3060, Edge) | License |
+|---|---|---|---|---|
+| [Tehma/text2sql-qwen2.5-coder-1.5b-onnx](https://huggingface.co/Tehma/text2sql-qwen2.5-coder-1.5b-onnx) | 71.4% | 877 MB | ~62 tok/s, 0.35-0.7 s per query | Apache 2.0 |
+| [Tehma/text2sql-qwen2.5-coder-3b-onnx](https://huggingface.co/Tehma/text2sql-qwen2.5-coder-3b-onnx) | 75.1% | 1.74 GB | ~46 tok/s, 0.5-1.0 s per query | Qwen Research (non-commercial) |
+
+Accuracy is for the 4-bit + adapter checkpoint on the full dev split (zero-shot); the difference is significant (exact McNemar p=0.006). Reproduce with `configs/train_config_1.5b.yaml` (1.5B) or `configs/train_config.yaml` (3B), then:
+
+```bash
+python scripts/merge_adapter.py --adapter checkpoints/1.5b/checkpoint-600 --output checkpoints/1.5b/merged-600-fp16
+pip install --no-deps onnxruntime-genai==0.20.0
+python scripts/export_onnx.py --merged checkpoints/1.5b/merged-600-fp16 --output checkpoints/1.5b/onnx-600-genai --verify 200
+python web/spike/serve.py --model checkpoints/1.5b/onnx-600-genai   # in a second terminal:
+python web/spike/run_spike.py --model onnx-600-genai --reference checkpoints/1.5b/onnx-600-genai/verify_dev_model_q4f16.json
+```
+
+`--verify 200` re-scores the first 200 dev questions and writes the `verify_dev_model_q4f16.json` that the spike compares against.
+
+The full log (decisions, bugs, measurements) is in the "Việc cần chạy cho M1" section of [`SQLocal.md`](SQLocal.md).
+
 ## Success Criteria
 
 - Execution accuracy of the fine-tuned model shows a clear, measurable improvement over both baselines. Target: **75%** on the `test` split, against Qwen2.5-Coder-3B-Instruct's own measured baselines (66.6% zero-shot, 73.9% few-shot on the corrected prompts — see `reports/baseline_evaluation.md`). The target was ~80% until 2026-10-09, when it was lowered to 75% after the test results were known. **Result: 77.4%** (v2 fine-tuned + few-shot; 76.4% without the leaked few-shot demos) — clears both baselines significantly and meets the 75% target, though not by a statistically clear margin (95% database-level interval 73.1-82.0%); 2.6pt short of the original ~80%. See the v2 section of `reports/qlora_training.md`
@@ -166,6 +192,8 @@ Loads `checkpoints/v2/checkpoint-600` and serves a local Gradio UI (default `htt
 - [x] v2: fix composite primary keys in schema prompts, retrain, select the checkpoint by dev execution accuracy
 - [x] Re-run both baselines on the corrected schema prompts
 - [x] Acceptance review: all reported numbers recomputed from the per-example results; few-shot demo exclusion fixed in code (not re-run); target set to 75%. **Project closed 2026-10-09.**
+- [x] Follow-up (2026-11): retrain 3B v2, train a 1.5B model on the same config, export both to q4f16 ONNX for the browser and publish them on the Hugging Face Hub (see [Browser models](#browser-models))
+- [x] SQLocal MVP deployed to GitHub Pages: CSV upload, English question, SQL + result table, read-only check, automatic fixes, CSV export
 
 Full write-up: [`reports/technical_report.md`](reports/technical_report.md). Working reports with the complete step-by-step trace (bugs hit, decisions made, and why) are in [`reports/`](reports/).
 
