@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SQLocal</title>
+<meta name="description" content="Ask questions about a CSV file in plain English. Runs entirely in your browser; your data never leaves your machine.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%232f5bd3'/><text x='16' y='22' font-size='14' text-anchor='middle' fill='white' font-family='monospace'>SQL</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <h1>SQLocal</h1>
+  <p class="lede">Ask questions about a CSV file in plain English. The model and the database run in your browser,
+    so your data never leaves your machine.</p>
+</header>
+
+<main>
+  <div id="banner" class="banner" hidden></div>
+
+  <section class="card" aria-labelledby="model-h">
+    <h2 id="model-h"><span class="step">1</span> Model</h2>
+    <div class="row wrap">
+      <label for="model-select" class="muted">Model</label>
+      <select id="model-select"></select>
+      <button id="model-load" type="button">Download model</button>
+    </div>
+    <p id="model-status" class="muted" aria-live="polite"></p>
+    <progress id="model-progress" max="1" value="0" hidden></progress>
+  </section>
+
+  <section class="card" aria-labelledby="data-h">
+    <h2 id="data-h"><span class="step">2</span> Data</h2>
+    <label id="dropzone" class="dropzone" for="file-input">
+      <input id="file-input" type="file" accept=".csv,.tsv,.txt,text/csv">
+      <span><strong>Drop a CSV file here</strong> or click to choose one</span>
+    </label>
+    <div class="row wrap">
+      <button id="sample-load" type="button" class="secondary">Use sample data (300 orders)</button>
+      <span id="data-status" class="muted" aria-live="polite"></span>
+    </div>
+    <details id="schema-box" hidden>
+      <summary>Columns and first rows</summary>
+      <div id="columns" class="chips"></div>
+      <div id="preview" class="table-wrap"></div>
+    </details>
+  </section>
+
+  <section class="card" aria-labelledby="ask-h">
+    <h2 id="ask-h"><span class="step">3</span> Ask</h2>
+    <form id="ask-form" class="row">
+      <input id="question" type="text" autocomplete="off" placeholder="e.g. What is the total revenue by region?" aria-label="Question (English)">
+      <button id="ask" type="submit" disabled>Ask</button>
+    </form>
+    <div id="examples" class="chips" hidden></div>
+    <p id="ask-hint" class="muted">Load a model and a CSV file first. Questions must be in English.</p>
+  </section>
+
+  <section id="result-card" class="card" aria-labelledby="result-h" hidden>
+    <h2 id="result-h">Result</h2>
+    <label for="sql" class="muted">SQL (you can edit it and run it again)</label>
+    <textarea id="sql" rows="4" spellcheck="false"></textarea>
+    <div class="row wrap">
+      <button id="run" type="button" class="secondary">Run SQL</button>
+      <button id="download" type="button" class="secondary" hidden>Download CSV</button>
+      <span id="result-status" class="muted" aria-live="polite"></span>
+    </div>
+    <ol id="attempts" class="attempts" hidden></ol>
+    <div id="error" class="error" hidden></div>
+    <div id="result" class="table-wrap"></div>
+  </section>
+</main>
+
+<footer class="muted">
+  Models: <a href="https://huggingface.co/Tehma/text2sql-qwen2.5-coder-1.5b-onnx">1.5B</a> (Apache 2.0) ·
+  <a href="https://huggingface.co/Tehma/text2sql-qwen2.5-coder-3b-onnx">3B</a> (Qwen Research License, non-commercial; Built with Qwen).
+  Fine-tuned on Spider. Generated SQL can be wrong, so check it before relying on a result.
+  <a href="https://github.com/Tehma123/text2sql-qlora">Source</a>
+</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
