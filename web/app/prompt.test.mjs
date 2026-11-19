@@ -2,8 +2,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  buildMessages, buildRepairMessages, buildSchema, cleanSql, promptType, quoteIdent, readOnlyError, safeColumnName,
-  tableNameFromFile, tidyError,
+  buildMessages, buildRepairMessages, buildSchema, cleanSql, fixDoubleQuotedStrings, promptType, quoteIdent, readOnlyError,
+  safeColumnName, sqliteCompat, tableNameFromFile, tidyError,
 } from "./prompt.js";
 
 test("promptType maps DuckDB types to the training vocabulary", () => {
@@ -42,6 +42,30 @@ test("column names the model can write unquoted", () => {
   assert.equal(safeColumnName("???", used), "col");
   assert.equal(safeColumnName("doanh thu vnd", used), "doanh_thu_vnd_2");
   assert.equal(safeColumnName("NAME", used), "NAME_2");
+});
+
+test("double-quoted strings become single-quoted unless they name something", () => {
+  const known = ["sales", "category", "Order Date"];
+  assert.equal(fixDoubleQuotedStrings('SELECT * FROM sales WHERE category = "Furniture"', known),
+    "SELECT * FROM sales WHERE category = 'Furniture'");
+  assert.equal(fixDoubleQuotedStrings('SELECT "category" FROM "sales" WHERE "order date" LIKE "2024-03%"', known),
+    `SELECT "category" FROM "sales" WHERE "order date" LIKE '2024-03%'`);
+  assert.equal(fixDoubleQuotedStrings(`SELECT * FROM t WHERE name = "O'Brien"`, known), "SELECT * FROM t WHERE name = 'O''Brien'");
+  assert.equal(fixDoubleQuotedStrings(`SELECT 'say "hi"' FROM t`, known), `SELECT 'say "hi"' FROM t`);
+  assert.equal(fixDoubleQuotedStrings('SELECT count(*) AS "n" FROM t ORDER BY "n"', known), 'SELECT count(*) AS "n" FROM t ORDER BY "n"');
+  assert.equal(fixDoubleQuotedStrings('SELECT 1 -- "note"\nFROM t', known), 'SELECT 1 -- "note"\nFROM t');
+});
+
+test("sqliteCompat: case-insensitive LIKE, LIKE on dates and numbers, double-quoted strings", () => {
+  const cols = [{ name: "order_date", type: "DATE" }, { name: "product", type: "VARCHAR" }, { name: "qty", type: "BIGINT" }];
+  assert.equal(sqliteCompat(`SELECT count(*) FROM sales WHERE order_date LIKE "2024-03%"`, "sales", cols),
+    "SELECT count(*) FROM sales WHERE CAST(order_date AS VARCHAR) ILIKE '2024-03%'");
+  assert.equal(sqliteCompat("SELECT * FROM sales WHERE product LIKE '%laptop%' AND T1.qty NOT LIKE '1%'", "sales", cols),
+    "SELECT * FROM sales WHERE product ILIKE '%laptop%' AND CAST(T1.qty AS VARCHAR) NOT ILIKE '1%'");
+  assert.equal(sqliteCompat("SELECT * FROM sales WHERE product ILIKE 'a' AND product = 'LIKE me'", "sales", cols),
+    "SELECT * FROM sales WHERE product ILIKE 'a' AND product = 'LIKE me'");
+  assert.equal(sqliteCompat('SELECT "order_date" FROM sales WHERE "order_date" LIKE \'2024%\'', "sales", cols),
+    `SELECT "order_date" FROM sales WHERE CAST("order_date" AS VARCHAR) ILIKE '2024%'`);
 });
 
 test("tidyError drops repeated context", () => {

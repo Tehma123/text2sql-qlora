@@ -124,6 +124,64 @@ export function cleanSql(text) {
   return s.trim();
 }
 
+/**
+ * SQLite reads "x" as a string when no column is called x, and the model
+ * (trained on Spider's SQLite queries) writes strings that way:
+ * WHERE category = "Furniture". DuckDB always reads "x" as a name. This turns
+ * every double-quoted token that is not a known table, column or AS alias
+ * into a single-quoted string, which is what SQLite would have run.
+ */
+export function fixDoubleQuotedStrings(sql, knownNames) {
+  const known = new Set([...knownNames].map((n) => String(n).toLowerCase()));
+  for (const m of sql.matchAll(/\bas\s+"((?:[^"]|"")*)"/gi)) known.add(m[1].replaceAll('""', '"').toLowerCase());
+  let out = "";
+  for (let i = 0; i < sql.length; ) {
+    const ch = sql[i];
+    if (ch === "'" || ch === '"') {
+      let j = i + 1;
+      while (j < sql.length && !(sql[j] === ch && sql[j + 1] !== ch)) j += sql[j] === ch ? 2 : 1;
+      const token = sql.slice(i, j + 1);
+      if (ch === '"') {
+        const content = token.slice(1, -1).replaceAll('""', '"');
+        out += known.has(content.toLowerCase()) ? token : `'${content.replaceAll("'", "''")}'`;
+      } else out += token;
+      i = j + 1;
+    } else if (sql.startsWith("--", i)) {
+      const j = sql.indexOf("\n", i);
+      out += sql.slice(i, j === -1 ? sql.length : j);
+      i = j === -1 ? sql.length : j;
+    } else {
+      out += ch;
+      i++;
+    }
+  }
+  return out;
+}
+
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Makes SQLite-style SQL behave the same on DuckDB:
+ *  - "x" strings become 'x' (see fixDoubleQuotedStrings);
+ *  - LIKE becomes ILIKE, since SQLite's LIKE ignores case and DuckDB's does not;
+ *  - LIKE on a non-text column (dates, numbers) compares its text form, as in
+ *    SQLite, where order_date LIKE '2024-03%' works because dates are text.
+ * columns: [{name, type}] of the loaded table (DuckDB types).
+ */
+export function sqliteCompat(sql, table, columns) {
+  const fixed = fixDoubleQuotedStrings(sql, [table, ...columns.map((c) => c.name)]);
+  const nonText = columns.filter((c) => promptType(c.type) !== "TEXT").map((c) => c.name);
+  const castLike = nonText.map((name) => new RegExp(
+    `((?:\\b\\w+\\.)?(?:"${escapeRegex(name)}"|\\b${escapeRegex(name)}\\b))(\\s+(?:NOT\\s+)?ILIKE\\b)`, "gi"));
+  // Rewrite only outside single-quoted literals (odd split parts are literals).
+  return fixed.split(/('(?:[^']|'')*')/).map((part, i) => {
+    if (i % 2) return part;
+    let s = part.replace(/\bLIKE\b/gi, (m, offset, whole) => (/I$/i.test(whole.slice(0, offset)) ? m : "ILIKE"));
+    for (const re of castLike) s = s.replace(re, "CAST($1 AS VARCHAR)$2");
+    return s;
+  }).join("");
+}
+
 /** Index of the first `;` outside string literals and quoted identifiers, or -1. */
 function statementEnd(s) {
   let quote = null;

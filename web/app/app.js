@@ -3,7 +3,7 @@
 import * as duckdb from "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.32.0/+esm";
 import {
   MAX_REPAIRS, buildMessages, buildRepairMessages, buildSchema, cleanSql, quoteIdent, readOnlyError, safeColumnName,
-  tableNameFromFile, tidyError,
+  sqliteCompat, tableNameFromFile, tidyError,
 } from "./prompt.js";
 
 const MODELS = [
@@ -249,6 +249,7 @@ async function loadFile(file) {
     await state.conn.query("SET enable_external_access = false");
     await state.db.dropFile(fileName);
     state.labels = new Map(columns.filter((c) => c.name !== c.original).map((c) => [c.name, c.original]));
+    state.columns = columns;
     const count = (await state.conn.query(`SELECT count(*) FROM ${t}`)).getChildAt(0).get(0);
     const preview = tableToRows(await state.conn.query(`SELECT * FROM ${t} LIMIT ${PREVIEW_ROWS}`));
 
@@ -353,7 +354,7 @@ async function ask(question) {
     for (let attempt = 0; attempt <= MAX_REPAIRS; attempt++) {
       $("result-status").textContent = attempt ? `The query failed; asking the model to fix it (${attempt} of ${MAX_REPAIRS})...` : "Writing SQL...";
       const gen = await request("generate", { messages });
-      const sql = cleanSql(gen.text);
+      const sql = sqliteCompat(cleanSql(gen.text), state.table, state.columns);
       $("sql").value = sql;
       const error = await runSql(sql);
       report.attempts.push({ sql, error, ttftMs: gen.ttftMs, totalMs: gen.totalMs });
@@ -386,7 +387,9 @@ async function runManual() {
   updateAskEnabled();
   $("error").hidden = true;
   $("attempts").hidden = true;
-  const error = await runSql($("sql").value.trim());
+  const sql = sqliteCompat($("sql").value.trim(), state.table, state.columns);
+  $("sql").value = sql;
+  const error = await runSql(sql);
   if (error) { showError(error); $("result-status").textContent = ""; }
   else showResult("");
   state.busy = false;
