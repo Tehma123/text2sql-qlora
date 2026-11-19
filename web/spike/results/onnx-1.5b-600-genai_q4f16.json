@@ -1,0 +1,134 @@
+{
+ "first_load": {
+  "model": "onnx-1.5b-600-genai",
+  "dtype": "q4f16",
+  "done": true,
+  "error": null,
+  "results": [
+   {
+    "i": 0,
+    "prompt_tokens": 313,
+    "gen_tokens": 6,
+    "ttft_ms": 1425.5999999996275,
+    "total_ms": 1528.699999999255,
+    "sql": "SELECT count(*) FROM singer",
+    "reference_pred": "SELECT count(*) FROM singer",
+    "same_as_reference": true
+   },
+   {
+    "i": 1,
+    "prompt_tokens": 314,
+    "gen_tokens": 6,
+    "ttft_ms": 268.19999999925494,
+    "total_ms": 345.09999999962747,
+    "sql": "SELECT count(*) FROM singer",
+    "reference_pred": "SELECT count(*) FROM singer",
+    "same_as_reference": true
+   },
+   {
+    "i": 2,
+    "prompt_tokens": 325,
+    "gen_tokens": 15,
+    "ttft_ms": 286.40000000037253,
+    "total_ms": 526.9000000003725,
+    "sql": "SELECT Name ,  Country ,  Age FROM singer ORDER BY Age DESC",
+    "reference_pred": "SELECT Name ,  Country ,  Age FROM singer ORDER BY Age DESC",
+    "same_as_reference": true
+   },
+   {
+    "i": 3,
+    "prompt_tokens": 324,
+    "gen_tokens": 15,
+    "ttft_ms": 297,
+    "total_ms": 525.5,
+    "sql": "SELECT Name ,  Country ,  Age FROM singer ORDER BY Age DESC",
+    "reference_pred": "SELECT Name ,  Country ,  Age FROM singer ORDER BY Age DESC",
+    "same_as_reference": true
+   },
+   {
+    "i": 4,
+    "prompt_tokens": 322,
+    "gen_tokens": 25,
+    "ttft_ms": 288.90000000037253,
+    "total_ms": 672.5,
+    "sql": "SELECT avg(age) ,  min(age) ,  max(age) FROM singer WHERE country  =  'France'",
+    "reference_pred": "SELECT avg(age) ,  min(age) ,  max(age) FROM singer WHERE country  =  'France'",
+    "same_as_reference": true
+   }
+  ],
+  "source": "local",
+  "adapter": {
+   "vendor": "nvidia",
+   "architecture": "ampere",
+   "description": "",
+   "shader_f16": true
+  },
+  "load_ms": 3812.4000000003725
+ },
+ "cached_load": {
+  "model": "onnx-1.5b-600-genai",
+  "dtype": "q4f16",
+  "done": true,
+  "error": null,
+  "results": [
+   {
+    "i": 0,
+    "prompt_tokens": 313,
+    "gen_tokens": 6,
+    "ttft_ms": 699.4000000003725,
+    "total_ms": 795.4000000003725,
+    "sql": "SELECT count(*) FROM singer",
+    "reference_pred": "SELECT count(*) FROM singer",
+    "same_as_reference": true
+   },
+   {
+    "i": 1,
+    "prompt_tokens": 314,
+    "gen_tokens": 6,
+    "ttft_ms": 359,
+    "total_ms": 437.2000000011176,
+    "sql": "SELECT count(*) FROM singer",
+    "reference_pred": "SELECT count(*) FROM singer",
+    "same_as_reference": true
+   },
+   {
+    "i": 2,
+    "prompt_tokens": 325,
+    "gen_tokens": 15,
+    "ttft_ms": 284.90000000037253,
+    "total_ms": 523.4000000003725,
+    "sql": "SELECT Name ,  Country ,  Age FROM singer ORDER BY Age DESC",
+    "reference_pred": "SELECT Name ,  Country ,  Age FROM singer ORDER BY Age DESC",
+    "same_as_reference": true
+   },
+   {
+    "i": 3,
+    "prompt_tokens": 324,
+    "gen_tokens": 15,
+    "ttft_ms": 297.69999999925494,
+    "total_ms": 516.8999999985099,
+    "sql": "SELECT Name ,  Country ,  Age FROM singer ORDER BY Age DESC",
+    "reference_pred": "SELECT Name ,  Country ,  Age FROM singer ORDER BY Age DESC",
+    "same_as_reference": true
+   },
+   {
+    "i": 4,
+    "prompt_tokens": 322,
+    "gen_tokens": 25,
+    "ttft_ms": 279.69999999925494,
+    "total_ms": 653.1999999992549,
+    "sql": "SELECT avg(age) ,  min(age) ,  max(age) FROM singer WHERE country  =  'France'",
+    "reference_pred": "SELECT avg(age) ,  min(age) ,  max(age) FROM singer WHERE country  =  'France'",
+    "same_as_reference": true
+   }
+  ],
+  "source": "local",
+  "adapter": {
+   "vendor": "nvidia",
+   "architecture": "ampere",
+   "description": "",
+   "shader_f16": true
+  },
+  "load_ms": 4278.10000000149
+ }
+}

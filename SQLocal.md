@@ -146,8 +146,28 @@ Ghi lại ngày 17/11/2026, chưa chạy. Repo vừa clone lại: `checkpoints/`
   - Tải lần đầu (profile trống): **53 s** và 90 s ở hai lần chạy, phụ thuộc mạng (1,74 GB). Tải lại khi đã có cache: **3,0 s** (nhanh hơn bản localhost 7 s, vì `serve.py` gửi `no-store`). Sinh token và 5/5 câu SQL giống hệt khi chạy local.
   - Transformers.js lưu cả model lẫn file wasm của onnxruntime-web vào Cache API (`transformers-cache`, 1,7 GB; quota của profile là 11,9 GB).
   - **Rủi ro cho SQLocal:** ở cửa sổ ẩn danh (và context mặc định của Playwright), quota quá nhỏ nên không lưu được cache, lần nào vào trang cũng tải lại cả 1,74 GB (lần chạy đầu đo được 48 s cho "lần tải lại"). App nên kiểm tra `navigator.storage.estimate()` trước khi tải, báo cho người dùng nếu quota không đủ, và gọi `navigator.storage.persist()` để trình duyệt không tự xoá cache.
-- [ ] **Train 1.5B:** sửa `QUANTIZED_MODEL_ID` trong `src/text2sql/models/load_model.py` (đang gán cứng bản 3B) thành tham số theo config, tạo config riêng cho 1.5B với `output_dir` riêng, rồi train với cùng data, pipeline và eval set.
-- [ ] **So sánh:** bảng 3B và 1.5B × PyTorch và ONNX q4f16: accuracy, thời gian tải, latency.
+- [x] **Train 1.5B** (19/11): ID model 4-bit giờ suy ra từ `base_model` của config (`quantized_model_id` trong `load_model.py`); `configs/train_config_1.5b.yaml` giống hệt config 3B, chỉ khác `base_model` và `output_dir` (`checkpoints/1.5b`). Lệnh: `python scripts/train.py --train-config configs/train_config_1.5b.yaml` (khoảng 4,9 s/bước, nhanh gấp đôi 3B), dừng tay sau `checkpoint-600`, rồi `--resume-from-checkpoint checkpoints/1.5b/checkpoint-600` đến `checkpoint-800`.
+  - eval_loss: 0.2623 / **0.2547** / 0.2592 / 0.2628 / 0.2625 / 0.2777 / 0.2851 / 0.2925 (bước 100…800); cùng hình dạng với 3B, thấp nhất ở bước 200.
+  - Dev execution accuracy (1.034 câu, zero-shot, `results/finetuned/1.5b/`): **checkpoint-600 71,4%** (exact match 44,2%), checkpoint-700 69,3% (41,8%), checkpoint-800 71,3% (45,4%). Train thêm không giúp: 800 so với 600 p=1,0 (46/47 câu khác nhau mỗi bên); 700 kém 600 (p=0,048). checkpoint-500 dừng chấm giữa chừng vì kém 600 ở mọi mốc (55,3% so với 62,0% sau 150 câu).
+  - Chọn **checkpoint-600** (cùng số bước với bản 3B). **So với 3B checkpoint-600 (75,1%): kém 3,7 điểm, có ý nghĩa** (McNemar chính xác p=0,006; 116 câu chỉ 3B đúng, 77 câu chỉ 1.5B đúng).
+- [x] **Merge và export 1.5B** (19/11): `python scripts/merge_adapter.py --adapter checkpoints/1.5b/checkpoint-600 --output checkpoints/1.5b/merged-600-fp16 --verify 200 --reference results/finetuned/1.5b/checkpoint-600_dev_zero_shot.json` (2,9 GB, khoảng 5 phút), rồi `python scripts/export_onnx.py --merged checkpoints/1.5b/merged-600-fp16 --output checkpoints/1.5b/onnx-600-genai --verify 200 --reference results/finetuned/1.5b/checkpoint-600_dev_zero_shot.json` (khoảng 2 phút, không cần sửa gì thêm). `model_q4f16.onnx_data` **877 MB**.
+  - Chạy thử: `python web/spike/serve.py --model onnx-1.5b-600-genai=checkpoints/1.5b/onnx-600-genai` (cú pháp `tên=thư mục` vì hai bản cùng tên thư mục), rồi `run_spike.py --model onnx-1.5b-600-genai --reference checkpoints/1.5b/onnx-600-genai/verify_dev_model_q4f16.json`. 5/5 câu SQL trùng onnxruntime CUDA.
+- [x] **Đẩy bản 1.5B lên HF Hub** (19/11): [`Tehma/text2sql-qwen2.5-coder-1.5b-onnx`](https://huggingface.co/Tehma/text2sql-qwen2.5-coder-1.5b-onnx), public, kèm `LICENSE` (Apache 2.0) và `NOTICE` (ghi các file đã sửa, theo điều 4 của Apache 2.0). Checksum `model_q4f16.onnx_data` khớp bản local. Chạy thử từ Hub với profile trống: tải lần đầu 31,7 s, lần sau 1,6 s; 5/5 câu SQL trùng onnxruntime CUDA.
+- [x] **So sánh** (19/11):
+
+  | | 3B | 1.5B |
+  |---|---|---|
+  | Dev EX, 4-bit + adapter, 1.034 câu | **75,1%** | 71,4% (p=0,006) |
+  | 200 câu đầu: 4-bit + adapter / fp16 merge / ONNX q4f16 | 67,0 / 66,0 / 64,0% | 62,0 / 60,5 / 64,0% |
+  | Dung lượng tải (q4f16) | 1,74 GB | **877 MB** |
+  | Tải lần đầu từ Hub (cùng mạng, khác lúc đo) | 53–90 s | **31,7 s** |
+  | Nạp khi đã có model (localhost / cache Hub) | 6,6–7,0 s / 3,0 s | 3,8–4,3 s / **1,6 s** |
+  | TTFT (prompt khoảng 320 token, trừ câu đầu) | 0,47 s | **0,29 s** |
+  | Tốc độ sinh | 46 token/s | **62 token/s** |
+  | Một câu SQL | 0,5–1,0 s | **0,35–0,67 s** |
+  | Giấy phép | Qwen Research (phi thương mại) | **Apache 2.0** |
+
+  Trên 200 câu, ONNX 1.5B bằng ONNX 3B (64,0%), nhưng mẫu nhỏ và 1.5B chỉ trùng 42% câu SQL với bản adapter của nó, nên con số tin được là 1.034 câu của bản adapter: 1.5B kém 3,7 điểm. Số đo trình duyệt trên RTX 3060; máy yếu hơn chưa đo.
 
 ## Rủi ro & câu hỏi mở
 
