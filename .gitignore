@@ -50,3 +50,6 @@ Thumbs.db
 
 # Vietnamese document translations (local reference only, not published)
 *.vi.md
+
+# SQLocal end-to-end test screenshots (results JSON is kept)
+web/e2e/results/*.png
