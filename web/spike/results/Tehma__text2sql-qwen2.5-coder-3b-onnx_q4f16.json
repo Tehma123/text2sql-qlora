@@ -1,0 +1,162 @@
+{
+ "first_load": {
+  "model": "Tehma/text2sql-qwen2.5-coder-3b-onnx",
+  "dtype": "q4f16",
+  "done": true,
+  "error": null,
+  "results": [
+   {
+    "i": 0,
+    "prompt_tokens": 313,
+    "gen_tokens": 6,
+    "ttft_ms": 1311.4000000003725,
+    "total_ms": 1441.8000000002794,
+    "sql": "SELECT count(*) FROM singer",
+    "reference_pred": "SELECT count(*) FROM singer",
+    "same_as_reference": true
+   },
+   {
+    "i": 1,
+    "prompt_tokens": 314,
+    "gen_tokens": 6,
+    "ttft_ms": 432.8000000002794,
+    "total_ms": 536.3000000002794,
+    "sql": "SELECT count(*) FROM singer",
+    "reference_pred": "SELECT count(*) FROM singer",
+    "same_as_reference": true
+   },
+   {
+    "i": 2,
+    "prompt_tokens": 325,
+    "gen_tokens": 15,
+    "ttft_ms": 609.6000000000931,
+    "total_ms": 923.1000000000931,
+    "sql": "SELECT name ,  country ,  age FROM singer ORDER BY age DESC",
+    "reference_pred": "SELECT name ,  country ,  age FROM singer ORDER BY age DESC",
+    "same_as_reference": true
+   },
+   {
+    "i": 3,
+    "prompt_tokens": 324,
+    "gen_tokens": 15,
+    "ttft_ms": 487.39999999990687,
+    "total_ms": 802.3999999999069,
+    "sql": "SELECT Name ,  Country ,  Age FROM singer ORDER BY Age DESC",
+    "reference_pred": "SELECT Name ,  Country ,  Age FROM singer ORDER BY Age DESC",
+    "same_as_reference": true
+   },
+   {
+    "i": 4,
+    "prompt_tokens": 322,
+    "gen_tokens": 28,
+    "ttft_ms": 480.10000000009313,
+    "total_ms": 1086.5,
+    "sql": "SELECT avg(Age) ,  min(Age) ,  max(Age) FROM singer WHERE Country  =  'France'",
+    "reference_pred": "SELECT avg(Age) ,  min(Age) ,  max(Age) FROM singer WHERE Country  =  'France'",
+    "same_as_reference": true
+   }
+  ],
+  "source": "hub",
+  "adapter": {
+   "vendor": "nvidia",
+   "architecture": "ampere",
+   "description": "",
+   "shader_f16": true
+  },
+  "load_ms": 52932.10000000009,
+  "cached_files": [
+   "tokenizer_config.json",
+   "tokenizer.json",
+   "config.json",
+   "generation_config.json",
+   "onnx/model_q4f16.onnx",
+   "onnx/model_q4f16.onnx_data",
+   "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.0-dev.20260914-8d85527a0/dist/ort-wasm-simd-threaded.asyncify.mjs",
+   "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.0-dev.20260914-8d85527a0/dist/ort-wasm-simd-threaded.asyncify.wasm"
+  ],
+  "storage": {
+   "usage_mb": 1701,
+   "quota_mb": 11941
+  }
+ },
+ "cached_load": {
+  "model": "Tehma/text2sql-qwen2.5-coder-3b-onnx",
+  "dtype": "q4f16",
+  "done": true,
+  "error": null,
+  "results": [
+   {
+    "i": 0,
+    "prompt_tokens": 313,
+    "gen_tokens": 6,
+    "ttft_ms": 1351.3999999999069,
+    "total_ms": 1496.3999999999069,
+    "sql": "SELECT count(*) FROM singer",
+    "reference_pred": "SELECT count(*) FROM singer",
+    "same_as_reference": true
+   },
+   {
+    "i": 1,
+    "prompt_tokens": 314,
+    "gen_tokens": 6,
+    "ttft_ms": 454,
+    "total_ms": 551.6999999997206,
+    "sql": "SELECT count(*) FROM singer",
+    "reference_pred": "SELECT count(*) FROM singer",
+    "same_as_reference": true
+   },
+   {
+    "i": 2,
+    "prompt_tokens": 325,
+    "gen_tokens": 15,
+    "ttft_ms": 544.6000000000931,
+    "total_ms": 894.5,
+    "sql": "SELECT name ,  country ,  age FROM singer ORDER BY age DESC",
+    "reference_pred": "SELECT name ,  country ,  age FROM singer ORDER BY age DESC",
+    "same_as_reference": true
+   },
+   {
+    "i": 3,
+    "prompt_tokens": 324,
+    "gen_tokens": 15,
+    "ttft_ms": 531.8999999999069,
+    "total_ms": 873.3999999999069,
+    "sql": "SELECT Name ,  Country ,  Age FROM singer ORDER BY Age DESC",
+    "reference_pred": "SELECT Name ,  Country ,  Age FROM singer ORDER BY Age DESC",
+    "same_as_reference": true
+   },
+   {
+    "i": 4,
+    "prompt_tokens": 322,
+    "gen_tokens": 28,
+    "ttft_ms": 477.09999999962747,
+    "total_ms": 1084.3999999999069,
+    "sql": "SELECT avg(Age) ,  min(Age) ,  max(Age) FROM singer WHERE Country  =  'France'",
+    "reference_pred": "SELECT avg(Age) ,  min(Age) ,  max(Age) FROM singer WHERE Country  =  'France'",
+    "same_as_reference": true
+   }
+  ],
+  "source": "hub",
+  "adapter": {
+   "vendor": "nvidia",
+   "architecture": "ampere",
+   "description": "",
+   "shader_f16": true
+  },
+  "load_ms": 2999,
+  "cached_files": [
+   "tokenizer_config.json",
+   "tokenizer.json",
+   "config.json",
+   "generation_config.json",
+   "onnx/model_q4f16.onnx",
+   "onnx/model_q4f16.onnx_data",
+   "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.0-dev.20260914-8d85527a0/dist/ort-wasm-simd-threaded.asyncify.mjs",
+   "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.0-dev.20260914-8d85527a0/dist/ort-wasm-simd-threaded.asyncify.wasm"
+  ],
+  "storage": {
+   "usage_mb": 1701,
+   "quota_mb": 11941
+  }
+ }
+}
