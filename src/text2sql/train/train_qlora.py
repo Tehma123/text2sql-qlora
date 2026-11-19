@@ -102,7 +102,7 @@ def run(
     from trl import SFTConfig, SFTTrainer
     from unsloth.chat_templates import train_on_responses_only
 
-    from text2sql.models.load_model import load_model_for_training
+    from text2sql.models.load_model import load_model_for_training, quantized_model_id
 
     train_config = load_config(train_config_path)
     data_config = load_config(data_config_path)
@@ -112,7 +112,9 @@ def run(
     training_cfg = train_config["training"]
     load_in_4bit = train_config.get("quantization", {}).get("load_in_4bit", True)
 
-    model, tokenizer = load_model_for_training(lora_cfg, max_seq_length, load_in_4bit=load_in_4bit)
+    model, tokenizer = load_model_for_training(
+        lora_cfg, max_seq_length, load_in_4bit=load_in_4bit, model_id=quantized_model_id(train_config["base_model"])
+    )
     trainable, total = model.get_nb_trainable_parameters()
     logger.info("Trainable params: %d / %d (%.3f%%)", trainable, total, 100 * trainable / total)
 

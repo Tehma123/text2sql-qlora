@@ -23,14 +23,22 @@ logger = get_logger(__name__)
 QUANTIZED_MODEL_ID = "unsloth/Qwen2.5-Coder-3B-Instruct-bnb-4bit"
 
 
-def load_base_model(max_seq_length: int):
+def quantized_model_id(base_model: str) -> str:
+    """Unsloth's pre-quantized 4-bit repo for a train config's `base_model`.
+
+    `Qwen/Qwen2.5-Coder-1.5B-Instruct` -> `unsloth/Qwen2.5-Coder-1.5B-Instruct-bnb-4bit`.
+    """
+    return f"unsloth/{base_model.split('/')[-1]}-bnb-4bit"
+
+
+def load_base_model(max_seq_length: int, model_id: str = QUANTIZED_MODEL_ID):
     """Load the un-finetuned base model + tokenizer, ready for generation."""
     import unsloth  # noqa: F401 -- must be imported before transformers/peft
     from unsloth import FastLanguageModel
 
-    logger.info("Loading base model %s (max_seq_length=%d)", QUANTIZED_MODEL_ID, max_seq_length)
+    logger.info("Loading base model %s (max_seq_length=%d)", model_id, max_seq_length)
     model, tokenizer = FastLanguageModel.from_pretrained(
-        model_name=QUANTIZED_MODEL_ID,
+        model_name=model_id,
         max_seq_length=max_seq_length,
         load_in_4bit=True,
         dtype=None,
@@ -46,7 +54,7 @@ def load_finetuned_model(checkpoint_dir: str, max_seq_length: int):
 
     `checkpoint_dir` is a directory saved by train_qlora.py (`adapter_config.json`
     + `adapter_model.safetensors`); its `base_model_name_or_path` points back at
-    QUANTIZED_MODEL_ID, so Unsloth quantizes the same base and merges the adapter
+    the 4-bit base it was trained on, so Unsloth quantizes the same base and merges the adapter
     on load, same as it does for load_base_model.
     """
     import unsloth  # noqa: F401 -- must be imported before transformers/peft
@@ -65,7 +73,9 @@ def load_finetuned_model(checkpoint_dir: str, max_seq_length: int):
     return model, tokenizer
 
 
-def load_model_for_training(lora_cfg: dict, max_seq_length: int, load_in_4bit: bool = True):
+def load_model_for_training(
+    lora_cfg: dict, max_seq_length: int, load_in_4bit: bool = True, model_id: str = QUANTIZED_MODEL_ID
+):
     """Load the base model + tokenizer wrapped with a trainable LoRA adapter (QLoRA).
 
     Shared by the real training run (`text2sql.train.train_qlora`) and the
@@ -78,12 +88,12 @@ def load_model_for_training(lora_cfg: dict, max_seq_length: int, load_in_4bit: b
 
     logger.info(
         "Loading trainable model %s (max_seq_length=%d, load_in_4bit=%s)",
-        QUANTIZED_MODEL_ID,
+        model_id,
         max_seq_length,
         load_in_4bit,
     )
     model, tokenizer = FastLanguageModel.from_pretrained(
-        model_name=QUANTIZED_MODEL_ID,
+        model_name=model_id,
         max_seq_length=max_seq_length,
         load_in_4bit=load_in_4bit,
         dtype=None,
