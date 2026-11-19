@@ -21,7 +21,7 @@ that skews the next measurement.
 import argparse
 import json
 
-from text2sql.models.load_model import QUANTIZED_MODEL_ID
+from text2sql.models.load_model import quantized_model_id
 from text2sql.utils.config import load_config, resolve_path
 from text2sql.utils.logging import get_logger
 
@@ -47,7 +47,7 @@ def _load_peft(base_model: str, lora_cfg: dict, max_seq_length: int):
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    model = AutoModelForCausalLM.from_pretrained(QUANTIZED_MODEL_ID, device_map={"": 0}, dtype=torch.bfloat16)
+    model = AutoModelForCausalLM.from_pretrained(quantized_model_id(base_model), device_map={"": 0}, dtype=torch.bfloat16)
     model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
     model = get_peft_model(
         model,
@@ -68,7 +68,7 @@ def _load_unsloth(base_model: str, lora_cfg: dict, max_seq_length: int):
     # know what that run will actually do, not a lookalike.
     from text2sql.models.load_model import load_model_for_training
 
-    return load_model_for_training(lora_cfg, max_seq_length)
+    return load_model_for_training(lora_cfg, max_seq_length, model_id=quantized_model_id(base_model))
 
 
 def run(batch_size: int, backend: str, data_config_path: str, train_config_path: str) -> dict:
@@ -80,7 +80,7 @@ def run(batch_size: int, backend: str, data_config_path: str, train_config_path:
     base_model = train_config["base_model"]
     lora_cfg = train_config["lora"]
 
-    logger.info("Loading tokenizer + 4-bit model via %s backend (%s)", backend, QUANTIZED_MODEL_ID)
+    logger.info("Loading tokenizer + 4-bit model via %s backend (%s)", backend, quantized_model_id(base_model))
     loader = _load_unsloth if backend == "unsloth" else _load_peft
     model, tokenizer = loader(base_model, lora_cfg, max_seq_length)
     if tokenizer.pad_token is None:
