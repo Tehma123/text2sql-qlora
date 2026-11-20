@@ -12,20 +12,21 @@
   --warn-fg: #7a5200;
   --ok: #1d7a3a;
   --code: #f1f3f6;
+  --series-1: #2a78d6; /* chart series, validated >= 3:1 on --card */
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #111317; --card: #1a1d23; --fg: #e6e8eb; --muted: #9aa3ae; --border: #2e333b;
     --accent: #6d8ff0; --accent-fg: #0b0d12; --err-bg: #3a1c1a; --err-fg: #ffb4ab;
-    --warn-bg: #3a2f12; --warn-fg: #f3d27a; --ok: #6fd28f; --code: #22262d;
+    --warn-bg: #3a2f12; --warn-fg: #f3d27a; --ok: #6fd28f; --code: #22262d; --series-1: #3987e5;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #111317; --card: #1a1d23; --fg: #e6e8eb; --muted: #9aa3ae; --border: #2e333b;
   --accent: #6d8ff0; --accent-fg: #0b0d12; --err-bg: #3a1c1a; --err-fg: #ffb4ab;
-  --warn-bg: #3a2f12; --warn-fg: #f3d27a; --ok: #6fd28f; --code: #22262d;
+  --warn-bg: #3a2f12; --warn-fg: #f3d27a; --ok: #6fd28f; --code: #22262d; --series-1: #3987e5;
   color-scheme: dark;
 }
 
@@ -100,6 +101,27 @@ td.null { color: var(--muted); font-style: italic; }
 .error { margin: 10px 0 0; white-space: pre-wrap; }
 .attempts { margin: 10px 0 0; padding-left: 20px; font-size: 14px; color: var(--muted); }
 .attempts code { font-size: 13px; background: var(--code); padding: 1px 4px; border-radius: 4px; word-break: break-word; }
+
+.explain { margin: 0 0 8px; color: var(--muted); font-size: 14px; }
+.hints { margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: var(--warn-bg); color: var(--warn-fg); font-size: 14px; }
+.hints ul { margin: 6px 0; padding-left: 20px; }
+
+.chart { position: relative; margin-top: 14px; }
+.chart svg { display: block; overflow: visible; }
+.chart text { font-size: 12px; fill: var(--muted); }
+.chart text.label { fill: var(--fg); }
+.chart .grid { stroke: var(--border); stroke-width: 1; }
+.chart .axis { stroke: var(--muted); stroke-width: 1; }
+.chart .bar { fill: var(--series-1); }
+.chart .line { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .marker { fill: var(--series-1); stroke: var(--card); stroke-width: 2; }
+.chart .cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.chart .hit { fill: transparent; outline: none; }
+.chart .hit:focus-visible { stroke: var(--accent); stroke-width: 2; }
+.chart-tip {
+  position: absolute; pointer-events: none; padding: 4px 8px; border-radius: 6px; font-size: 13px; white-space: nowrap;
+  background: var(--card); color: var(--fg); border: 1px solid var(--border); box-shadow: 0 2px 6px rgb(0 0 0 / 0.15);
+}
 
 footer { padding-top: 4px; padding-bottom: 32px; font-size: 13px; }
 

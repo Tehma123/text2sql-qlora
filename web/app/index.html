@@ -7,6 +7,18 @@
 <meta name="description" content="Ask questions about a CSV file in plain English. Runs entirely in your browser; your data never leaves your machine.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%232f5bd3'/><text x='16' y='22' font-size='14' text-anchor='middle' fill='white' font-family='monospace'>SQL</text></svg>">
 <link rel="stylesheet" href="style.css">
+<script>
+  // Cross-origin isolation (multi-threaded WASM) via coi-sw.js: register it, then
+  // reload once so this page is served through it. Skipped if it cannot work.
+  if (!window.crossOriginIsolated && window.isSecureContext && "serviceWorker" in navigator) {
+    navigator.serviceWorker.register("coi-sw.js").then((reg) => {
+      if (navigator.serviceWorker.controller) return; // controlled but still not isolated: give up quietly
+      const reload = () => { if (!sessionStorage.getItem("coi-reloaded")) { sessionStorage.setItem("coi-reloaded", "1"); location.reload(); } };
+      if (reg.active) reload();
+      else (reg.installing || reg.waiting)?.addEventListener("statechange", (e) => { if (e.target.state === "activated") reload(); });
+    }).catch(() => { /* no service worker (e.g. private mode): single-threaded WASM still works */ });
+  }
+</script>
 </head>
 <body>
 <header class="top">
@@ -60,6 +72,7 @@
     <h2 id="result-h">Result</h2>
     <label for="sql" class="muted">SQL (you can edit it and run it again)</label>
     <textarea id="sql" rows="4" spellcheck="false"></textarea>
+    <p id="explain" class="explain" hidden></p>
     <div class="row wrap">
       <button id="run" type="button" class="secondary">Run SQL</button>
       <button id="download" type="button" class="secondary" hidden>Download CSV</button>
@@ -67,6 +80,8 @@
     </div>
     <ol id="attempts" class="attempts" hidden></ol>
     <div id="error" class="error" hidden></div>
+    <div id="hints" class="hints" hidden></div>
+    <div id="chart" class="chart" hidden></div>
     <div id="result" class="table-wrap"></div>
   </section>
 </main>
@@ -75,7 +90,9 @@
   Models: <a href="https://huggingface.co/Tehma/text2sql-qwen2.5-coder-1.5b-onnx">1.5B</a> (Apache 2.0) ·
   <a href="https://huggingface.co/Tehma/text2sql-qwen2.5-coder-3b-onnx">3B</a> (Qwen Research License, non-commercial; Built with Qwen).
   Fine-tuned on Spider. Generated SQL can be wrong, so check it before relying on a result.
-  <a href="https://github.com/Tehma123/text2sql-qlora">Source</a>
+  <a href="https://github.com/Tehma123/text2sql-qlora">Source</a> ·
+  <a href="https://github.com/Tehma123/text2sql-qlora/issues/new?template=sqlocal-feedback.yml">Report a problem</a>
+  (opens GitHub; nothing is sent from this page)
 </footer>
 
 <script type="module" src="app.js"></script>

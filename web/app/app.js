@@ -5,11 +5,19 @@ import {
   MAX_REPAIRS, buildMessages, buildRepairMessages, buildSchema, cleanSql, quoteIdent, readOnlyError, safeColumnName,
   sqliteCompat, tableNameFromFile, tidyError,
 } from "./prompt.js";
+import {
+  chartSpec, explainSql, filteredNumberColumns, filteredTextColumns, looksEmpty, readableName, replaceTextLiteral, textEqualities,
+} from "./insights.js";
+import { renderChart } from "./chart.js";
 
+// bytes per dtype: q4f16 runs on WebGPU; q4 (fp32 activations) is the CPU/WASM
+// fallback, exported for the 1.5B model only (3B on a CPU is too slow to use).
 const MODELS = [
-  { id: "Tehma/text2sql-qwen2.5-coder-1.5b-onnx", label: "Standard: 1.5B, 877 MB (Apache 2.0)", bytes: 877e6 },
-  { id: "Tehma/text2sql-qwen2.5-coder-3b-onnx", label: "High accuracy: 3B, 1.74 GB (non-commercial license)", bytes: 1745e6 },
+  { id: "Tehma/text2sql-qwen2.5-coder-1.5b-onnx", name: "Standard: 1.5B", license: "Apache 2.0", bytes: { q4f16: 877e6, q4: 982e6 } },
+  { id: "Tehma/text2sql-qwen2.5-coder-3b-onnx", name: "High accuracy: 3B", license: "non-commercial license", bytes: { q4f16: 1745e6 } },
 ];
+const MAX_HINT_COLUMNS = 3;
+const MAX_HINT_VALUES = 8;
 const PREVIEW_ROWS = 5;
 const PROMPT_SAMPLE_ROWS = 3;
 const MAX_SHOWN_ROWS = 100;
@@ -25,6 +33,8 @@ const state = {
   modelId: null, worker: null, modelReady: false, nextRequest: 1, pending: new Map(),
   db: null, conn: null, dbWorker: null, table: null, schema: null, labels: new Map(),
   busy: false, lastResult: null,
+  backend: { device: "webgpu", dtype: "q4f16" }, // switched to wasm/q4 when WebGPU is missing
+  isolated: window.crossOriginIsolated, // true: multi-threaded WASM (coi-sw.js)
 };
 window.__sqlocal = state; // for the end-to-end test driver
 
@@ -96,7 +106,8 @@ function renderTable(container, { columns, rows, numeric }) {
 
 // ---------- model ----------
 function modelInfo(id) { return MODELS.find((m) => m.id === id); }
-const dataFileUrl = (id) => `https://huggingface.co/${id}/resolve/main/onnx/model_q4f16.onnx_data`;
+const dataFileUrl = (id) => `https://huggingface.co/${id}/resolve/main/onnx/model_${state.backend.dtype}.onnx_data`;
+const modelBytes = (info) => info.bytes[state.backend.dtype];
 
 async function isModelCached(id) {
   try {
@@ -111,7 +122,8 @@ async function checkWebGPU() {
   if (!navigator.gpu) return "This browser has no WebGPU. SQLocal needs Chrome or Edge on a desktop computer.";
   const adapter = await navigator.gpu.requestAdapter().catch(() => null);
   if (!adapter) return "WebGPU is turned off or not supported by this graphics card, so the model cannot run here.";
-  if (!adapter.features.has("shader-f16")) return "This graphics card does not support 16-bit WebGPU shaders (shader-f16), which the model needs.";
+  if (!adapter.features.has("shader-f16")) return "This graphics card does not support 16-bit WebGPU shaders (shader-f16).";
+  if (new URLSearchParams(location.search).get("device") === "wasm") return "CPU mode was requested (?device=wasm).";
   return null;
 }
 
@@ -154,7 +166,8 @@ function startWorker() {
     } else if (data.type === "ready") {
       state.modelReady = true;
       $("model-progress").hidden = true;
-      $("model-status").textContent = `Model ready (loaded in ${fmtSec(data.loadMs)}). It is saved in your browser for next time.`;
+      const where = state.backend.device === "wasm" ? " on the CPU" : "";
+      $("model-status").textContent = `Model ready${where} (loaded in ${fmtSec(data.loadMs)}). It is saved in your browser for next time.`;
       $("model-load").hidden = true;
       updateAskEnabled();
     } else if (data.type === "result" || data.type === "token") {
@@ -185,10 +198,10 @@ async function loadModel() {
   $("model-load").disabled = true;
   banner(null);
   const cached = await isModelCached(info.id);
-  if (!cached) await warnIfStorageTight(info.bytes);
+  if (!cached) await warnIfStorageTight(modelBytes(info));
   $("model-status").textContent = cached ? "Loading the model from your browser's storage..." : "Starting the download...";
   startWorker();
-  state.worker.postMessage({ type: "load", modelId: info.id });
+  state.worker.postMessage({ type: "load", modelId: info.id, ...state.backend });
   updateAskEnabled();
 }
 
@@ -205,8 +218,8 @@ async function refreshModelChoice() {
     $("model-load").textContent = "Load model";
     await loadModel(); // already downloaded: no need to ask
   } else {
-    $("model-load").textContent = `Download model (${fmtMB(info.bytes)})`;
-    $("model-status").textContent = `One-time download of ${fmtMB(info.bytes)}; after that the model loads from your browser's storage.`;
+    $("model-load").textContent = `Download model (${fmtMB(modelBytes(info))})`;
+    $("model-status").textContent = `One-time download of ${fmtMB(modelBytes(info))}; after that the model loads from your browser's storage.`;
   }
 }
 
@@ -306,15 +319,85 @@ async function runSql(sql) {
   }
 }
 
-function showResult(prefix) {
+function showResult(prefix, sql, notes = []) {
   const r = state.lastResult;
   const shown = { ...r, rows: r.rows.slice(0, MAX_SHOWN_ROWS) };
   renderTable($("result"), shown);
   const rowsText = r.total === 0
-    ? "0 rows. The query ran but nothing matched; check the values in “Columns and first rows”."
+    ? "0 rows: the query ran, but no row matched."
     : `${r.total.toLocaleString()} row${r.total === 1 ? "" : "s"}${r.total > MAX_SHOWN_ROWS ? ` (showing the first ${MAX_SHOWN_ROWS}; download the CSV for all)` : ""}.`;
   $("result-status").textContent = `${prefix}ran in ${Math.round(r.ms)} ms · ${rowsText}`;
   $("download").hidden = r.total === 0;
+  // The rest only helps the user check the result; a bug in it must not hide the result.
+  try {
+    let explanation = explainSql(sql);
+    for (const [safe, original] of state.labels) {
+      explanation = explanation?.replace(new RegExp(`\b${safe}\b`, "g"), `“${original}”`) ?? null;
+    }
+    const lines = [...notes, ...(explanation ? [`In words: ${explanation}`] : [])];
+    $("explain").hidden = !lines.length;
+    $("explain").textContent = lines.join(" ");
+    const spec = r.total <= MAX_SHOWN_ROWS ? chartSpec(r) : null;
+    if (spec) {
+      const name = (col) => state.labels.get(col) ?? readableName(col).replace(/\b\w+\b/g, (w) => state.labels.get(w) ?? w);
+      spec.labelName = name(spec.labelName);
+      spec.valueName = name(spec.valueName);
+    }
+    renderChart($("chart"), spec);
+  } catch (e) {
+    console.error("result extras failed", e);
+  }
+  if (looksEmpty(r)) return showValueHints(sql).catch((e) => console.error("value hints failed", e));
+}
+
+/**
+ * A text literal that is not in the data but matches one value apart from
+ * case ('Japan' vs 'japan') is replaced by that value. Returns the new SQL and
+ * notes for the user; the SQL box shows what actually ran.
+ */
+async function fixValueCase(sql) {
+  const notes = [];
+  const t = quoteIdent(state.table);
+  for (const { column, literal } of textEqualities(sql, state.columns)) {
+    const c = quoteIdent(column);
+    const lit = `'${literal.replaceAll("'", "''")}'`;
+    const exact = await state.conn.query(`SELECT 1 FROM ${t} WHERE ${c} = ${lit} LIMIT 1`);
+    if (exact.numRows) continue;
+    const near = tableToRows(await state.conn.query(`SELECT DISTINCT ${c} FROM ${t} WHERE lower(${c}) = lower(${lit}) LIMIT 2`));
+    if (near.rows.length !== 1) continue;
+    const actual = near.rows[0][0];
+    sql = replaceTextLiteral(sql, column, literal, actual);
+    notes.push(`Changed “${literal}” to “${actual}” to match the spelling in ${state.labels.get(column) ?? column}.`);
+  }
+  return { sql, notes };
+}
+
+/** Nothing matched: show real values of the text columns, and the range of the number columns, the query filters on. */
+async function showValueHints(sql) {
+  const textNames = filteredTextColumns(sql, state.columns).slice(0, MAX_HINT_COLUMNS);
+  const numberNames = filteredNumberColumns(sql, state.columns).slice(0, MAX_HINT_COLUMNS);
+  if (!textNames.length && !numberNames.length) return;
+  const t = quoteIdent(state.table);
+  const lines = [];
+  for (const name of textNames) {
+    const c = quoteIdent(name);
+    const top = tableToRows(await state.conn.query(
+      `SELECT ${c}, count(*) AS n FROM ${t} WHERE ${c} IS NOT NULL GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT ${MAX_HINT_VALUES}`));
+    const distinct = Number((await state.conn.query(`SELECT count(DISTINCT ${c}) FROM ${t}`)).getChildAt(0).get(0));
+    const more = distinct > top.rows.length ? `, and ${distinct - top.rows.length} more` : "";
+    lines.push(`${state.labels.get(name) ?? name}: ${top.rows.map((row) => `“${row[0]}”`).join(", ")}${more}`);
+  }
+  for (const name of numberNames) {
+    const c = quoteIdent(name);
+    const [lo, hi] = tableToRows(await state.conn.query(`SELECT min(${c}), max(${c}) FROM ${t}`)).rows[0];
+    lines.push(`${state.labels.get(name) ?? name}: numbers from ${lo} to ${hi}`);
+  }
+  const box = $("hints");
+  box.replaceChildren(document.createTextNode("Nothing matched the filter. The values in the data are:"));
+  const list = document.createElement("ul");
+  for (const line of lines) { const li = document.createElement("li"); li.textContent = line; list.appendChild(li); }
+  box.append(list, document.createTextNode("Check the values in the SQL, or ask again using these values."));
+  box.hidden = false;
 }
 
 function showError(message) {
@@ -322,6 +405,8 @@ function showError(message) {
   $("error").textContent = message;
   $("result").replaceChildren();
   $("download").hidden = true;
+  renderChart($("chart"), null);
+  $("explain").hidden = true;
 }
 
 function resetResult() {
@@ -331,6 +416,9 @@ function resetResult() {
   $("attempts").replaceChildren();
   $("result").replaceChildren();
   $("download").hidden = true;
+  $("hints").hidden = true;
+  $("explain").hidden = true;
+  renderChart($("chart"), null);
   state.lastResult = null;
 }
 
@@ -354,13 +442,13 @@ async function ask(question) {
     for (let attempt = 0; attempt <= MAX_REPAIRS; attempt++) {
       $("result-status").textContent = attempt ? `The query failed; asking the model to fix it (${attempt} of ${MAX_REPAIRS})...` : "Writing SQL...";
       const gen = await request("generate", { messages });
-      const sql = sqliteCompat(cleanSql(gen.text), state.table, state.columns);
+      const { sql, notes } = await fixValueCase(sqliteCompat(cleanSql(gen.text), state.table, state.columns));
       $("sql").value = sql;
       const error = await runSql(sql);
       report.attempts.push({ sql, error, ttftMs: gen.ttftMs, totalMs: gen.totalMs });
       if (!error) {
         const fixed = attempt ? ` after ${attempt} fix${attempt > 1 ? "es" : ""}` : "";
-        showResult(`SQL written in ${fmtSec(gen.totalMs)}${fixed} · `);
+        await showResult(`SQL written in ${fmtSec(gen.totalMs)}${fixed} · `, sql, notes);
         return;
       }
       addAttempt(sql, error);
@@ -385,13 +473,12 @@ async function ask(question) {
 async function runManual() {
   state.busy = true;
   updateAskEnabled();
-  $("error").hidden = true;
-  $("attempts").hidden = true;
-  const sql = sqliteCompat($("sql").value.trim(), state.table, state.columns);
+  resetResult();
+  const { sql, notes } = await fixValueCase(sqliteCompat($("sql").value.trim(), state.table, state.columns));
   $("sql").value = sql;
   const error = await runSql(sql);
   if (error) { showError(error); $("result-status").textContent = ""; }
-  else showResult("");
+  else await showResult("", sql, notes);
   state.busy = false;
   updateAskEnabled();
 }
@@ -410,21 +497,25 @@ function downloadCsv() {
 
 // ---------- wiring ----------
 async function init() {
-  const select = $("model-select");
-  for (const m of MODELS) select.add(new Option(m.label, m.id));
-  const saved = storedGet("sqlocal.model");
-  if (MODELS.some((m) => m.id === saved)) select.value = saved;
-
-  const gpuError = await checkWebGPU();
-  if (gpuError) {
-    banner(gpuError, true);
-    select.disabled = true;
-    $("model-load").disabled = true;
-  } else {
-    select.addEventListener("change", refreshModelChoice);
-    $("model-load").addEventListener("click", loadModel);
-    await refreshModelChoice();
+  const gpuProblem = await checkWebGPU();
+  if (gpuProblem) {
+    state.backend = { device: "wasm", dtype: "q4" };
+    const pace = state.isolated ? "about half a minute" : "one to three minutes (this browser blocked the faster multi-threaded mode)";
+    banner(`${gpuProblem} SQLocal will run the model on the CPU instead. That works, but each question takes ${pace} ` +
+           "instead of about a second. Chrome or Edge with WebGPU is much faster.");
   }
+  const select = $("model-select");
+  for (const m of MODELS) {
+    const bytes = m.bytes[state.backend.dtype];
+    const option = new Option(bytes ? `${m.name}, ${fmtMB(bytes)} (${m.license})` : `${m.name} (needs WebGPU)`, m.id);
+    option.disabled = !bytes;
+    select.add(option);
+  }
+  const saved = storedGet("sqlocal.model");
+  if (MODELS.some((m) => m.id === saved && m.bytes[state.backend.dtype])) select.value = saved;
+  select.addEventListener("change", refreshModelChoice);
+  $("model-load").addEventListener("click", loadModel);
+  await refreshModelChoice();
 
   $("file-input").addEventListener("change", (e) => { const f = e.target.files?.[0]; if (f) loadFile(f); e.target.value = ""; });
   const dz = $("dropzone");
