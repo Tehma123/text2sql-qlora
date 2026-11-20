@@ -53,3 +53,6 @@ Thumbs.db
 
 # SQLocal end-to-end test screenshots (results JSON is kept)
 web/e2e/results/*.png
+
+# SQLocal benchmark datasets (downloaded by web/e2e/benchmark.py, pinned by SHA-256)
+web/e2e/data/

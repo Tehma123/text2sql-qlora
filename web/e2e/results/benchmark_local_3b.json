@@ -1,0 +1,2070 @@
+{
+ "url": "http://127.0.0.1:8766/",
+ "model": "3b",
+ "seaborn_commit": "71e2436a092d714350de0fc409ca8a8714e7e78f",
+ "questions": [
+  {
+   "dataset": "tips",
+   "question": "What is the average tip?",
+   "attempts": [
+    {
+     "sql": "SELECT avg(tip) FROM tips",
+     "error": null,
+     "ttftMs": 536.3449999997392,
+     "totalMs": 864.2599999997765
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "avg(tip)"
+   ],
+   "rows": [
+    [
+     "2.9983"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.9 s · ran in 4 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the average tip.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "2.9982786885245902"
+    ]
+   ]
+  },
+  {
+   "dataset": "tips",
+   "question": "How many bills were paid by smokers?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) FROM tips WHERE smoker  =  'true'",
+     "error": null,
+     "ttftMs": 436.66499999910593,
+     "totalMs": 789.125
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count_star()"
+   ],
+   "rows": [
+    [
+     "93"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.8 s · ran in 10 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the number of rows, only for rows where smoker is “true”.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "93"
+    ]
+   ]
+  },
+  {
+   "dataset": "tips",
+   "question": "What is the total bill amount for each day?",
+   "attempts": [
+    {
+     "sql": "SELECT sum(total_bill) ,  day FROM tips GROUP BY day",
+     "error": null,
+     "ttftMs": 427.6000000005588,
+     "totalMs": 787.625
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "sum(total_bill)",
+    "day"
+   ],
+   "rows": [
+    [
+     "1627.16",
+     "Sun"
+    ],
+    [
+     "1778.4",
+     "Sat"
+    ],
+    [
+     "1096.33",
+     "Thur"
+    ],
+    [
+     "325.88",
+     "Fri"
+    ]
+   ],
+   "total_rows": 4,
+   "status": "SQL written in 0.8 s · ran in 10 ms · 4 rows.",
+   "error": null,
+   "explain": "In words: Shows the total total_bill for each day.",
+   "chart": "Bar chart of total total_bill by day",
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "Fri",
+     "325.87999999999994"
+    ],
+    [
+     "Sun",
+     "1627.1600000000003"
+    ],
+    [
+     "Sat",
+     "1778.3999999999996"
+    ],
+    [
+     "Thur",
+     "1096.3299999999997"
+    ]
+   ]
+  },
+  {
+   "dataset": "tips",
+   "question": "Which day has the highest average tip?",
+   "attempts": [
+    {
+     "sql": "SELECT day FROM tips GROUP BY day ORDER BY avg(tip) DESC LIMIT 1",
+     "error": null,
+     "ttftMs": 432.4449999993667,
+     "totalMs": 957.9950000001118
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "day"
+   ],
+   "rows": [
+    [
+     "Sun"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.0 s · ran in 6 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows each day, from highest to lowest average tip, keeping only the top one.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "Sun"
+    ]
+   ]
+  },
+  {
+   "dataset": "tips",
+   "question": "What is the largest party size?",
+   "attempts": [
+    {
+     "sql": "SELECT max(size) FROM tips",
+     "error": null,
+     "ttftMs": 463.0099999997765,
+     "totalMs": 643.3099999995902
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "max(size)"
+   ],
+   "rows": [
+    [
+     "6"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.6 s · ran in 2 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the highest size.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "6"
+    ]
+   ]
+  },
+  {
+   "dataset": "tips",
+   "question": "How many bills were paid at dinner?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) FROM tips WHERE time_col  =  'Dinner'",
+     "error": null,
+     "ttftMs": 457.97000000067055,
+     "totalMs": 921.1700000008568
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count_star()"
+   ],
+   "rows": [
+    [
+     "176"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.9 s · ran in 1 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the number of rows, only for rows where time_col is “Dinner”.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "176"
+    ]
+   ]
+  },
+  {
+   "dataset": "tips",
+   "question": "What is the average tip for each sex?",
+   "attempts": [
+    {
+     "sql": "SELECT avg(tip) ,  sex FROM tips GROUP BY sex",
+     "error": null,
+     "ttftMs": 442.54999999981374,
+     "totalMs": 805.0200000004843
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "avg(tip)",
+    "sex"
+   ],
+   "rows": [
+    [
+     "2.8334",
+     "Female"
+    ],
+    [
+     "3.0896",
+     "Male"
+    ]
+   ],
+   "total_rows": 2,
+   "status": "SQL written in 0.8 s · ran in 2 ms · 2 rows.",
+   "error": null,
+   "explain": "In words: Shows the average tip for each sex.",
+   "chart": "Bar chart of average tip by sex",
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "Female",
+     "2.833448275862069"
+    ],
+    [
+     "Male",
+     "3.0896178343949052"
+    ]
+   ]
+  },
+  {
+   "dataset": "tips",
+   "question": "What is the biggest tip given at lunch?",
+   "attempts": [
+    {
+     "sql": "SELECT max(tip) FROM tips WHERE time_col  =  'Lunch'",
+     "error": null,
+     "ttftMs": 430.910000000149,
+     "totalMs": 881.4850000003353
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "max(tip)"
+   ],
+   "rows": [
+    [
+     "6.7"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.9 s · ran in 2 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the highest tip, only for rows where time_col is “Lunch”.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "6.7"
+    ]
+   ]
+  },
+  {
+   "dataset": "tips",
+   "question": "How many parties had more than 4 people?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) FROM tips WHERE size  >  4",
+     "error": null,
+     "ttftMs": 432.0099999997765,
+     "totalMs": 745.054999999702
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count_star()"
+   ],
+   "rows": [
+    [
+     "9"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.7 s · ran in 2 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the number of rows, only for rows where size is more than 4.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "9"
+    ]
+   ]
+  },
+  {
+   "dataset": "tips",
+   "question": "What is the average tip as a percentage of the total bill?",
+   "attempts": [
+    {
+     "sql": "SELECT avg(tip/total_bill) FROM tips",
+     "error": null,
+     "ttftMs": 439.9550000000745,
+     "totalMs": 740.8300000000745
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "avg((tip / total_bill))"
+   ],
+   "rows": [
+    [
+     "0.1608"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.7 s · ran in 2 ms · 1 row.",
+   "error": null,
+   "explain": null,
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "16.080258172250478"
+    ]
+   ]
+  },
+  {
+   "dataset": "titanic",
+   "question": "How many passengers survived?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) FROM titanic WHERE survived  =  1",
+     "error": null,
+     "ttftMs": 652.8800000008196,
+     "totalMs": 1022.4500000001863
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count_star()"
+   ],
+   "rows": [
+    [
+     "342"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.0 s · ran in 7 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the number of rows, only for rows where survived is 1.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "342"
+    ]
+   ]
+  },
+  {
+   "dataset": "titanic",
+   "question": "What was the average age of the passengers?",
+   "attempts": [
+    {
+     "sql": "SELECT avg(age) FROM titanic",
+     "error": null,
+     "ttftMs": 681.3849999997765,
+     "totalMs": 875.9550000000745
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "avg(age)"
+   ],
+   "rows": [
+    [
+     "29.6991"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.9 s · ran in 1 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the average age.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "29.69911764705882"
+    ]
+   ]
+  },
+  {
+   "dataset": "titanic",
+   "question": "How many passengers were in each class?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) ,  CLASS FROM titanic GROUP BY CLASS",
+     "error": null,
+     "ttftMs": 652.285000000149,
+     "totalMs": 1014.0499999998137
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count_star()",
+    "class"
+   ],
+   "rows": [
+    [
+     "491",
+     "Third"
+    ],
+    [
+     "216",
+     "First"
+    ],
+    [
+     "184",
+     "Second"
+    ]
+   ],
+   "total_rows": 3,
+   "status": "SQL written in 1.0 s · ran in 8 ms · 3 rows.",
+   "error": null,
+   "explain": "In words: Shows the number of rows for each CLASS.",
+   "chart": "Bar chart of count_star() by class",
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "First",
+     "216"
+    ],
+    [
+     "Second",
+     "184"
+    ],
+    [
+     "Third",
+     "491"
+    ]
+   ]
+  },
+  {
+   "dataset": "titanic",
+   "question": "What was the survival rate for women?",
+   "attempts": [
+    {
+     "sql": "SELECT survived FROM titanic WHERE sex  =  'female'",
+     "error": null,
+     "ttftMs": 657.7649999996647,
+     "totalMs": 1035.2249999996275
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "survived"
+   ],
+   "rows": [
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "0"
+    ],
+    [
+     "1"
+    ],
+    [
+     "0"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "0"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "0"
+    ],
+    [
+     "1"
+    ],
+    [
+     "0"
+    ],
+    [
+     "0"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "0"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "0"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "0"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "0"
+    ],
+    [
+     "0"
+    ],
+    [
+     "0"
+    ],
+    [
+     "0"
+    ],
+    [
+     "1"
+    ],
+    [
+     "1"
+    ],
+    [
+     "0"
+    ],
+    [
+     "1"
+    ]
+   ],
+   "total_rows": 314,
+   "status": "SQL written in 1.0 s · ran in 1 ms · 314 rows (showing the first 100; download the CSV for all).",
+   "error": null,
+   "explain": "In words: Shows survived, only for rows where sex is “female”.",
+   "chart": null,
+   "hints": null,
+   "correct": false,
+   "expected": [
+    [
+     "0.7420382165605095"
+    ]
+   ]
+  },
+  {
+   "dataset": "titanic",
+   "question": "What was the highest fare paid?",
+   "attempts": [
+    {
+     "sql": "SELECT max(fare) FROM titanic",
+     "error": null,
+     "ttftMs": 672.5400000000373,
+     "totalMs": 891.8849999997765
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "max(fare)"
+   ],
+   "rows": [
+    [
+     "512.3292"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.9 s · ran in 2 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the highest fare.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "512.3292"
+    ]
+   ]
+  },
+  {
+   "dataset": "titanic",
+   "question": "How many passengers embarked at Southampton?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) FROM titanic WHERE embark_town  =  'Southampton'",
+     "error": null,
+     "ttftMs": 673.015000000596,
+     "totalMs": 1201.6350000007078
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count_star()"
+   ],
+   "rows": [
+    [
+     "644"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.2 s · ran in 1 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the number of rows, only for rows where embark_town is “Southampton”.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "644"
+    ]
+   ]
+  },
+  {
+   "dataset": "titanic",
+   "question": "Which deck had the most passengers?",
+   "attempts": [
+    {
+     "sql": "SELECT deck ,  count(*) FROM titanic GROUP BY deck ORDER BY count(*) DESC LIMIT 1",
+     "error": null,
+     "ttftMs": 655.1500000003725,
+     "totalMs": 1258.5650000004098
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "deck",
+    "count_star()"
+   ],
+   "rows": [
+    [
+     null,
+     "688"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.3 s · ran in 8 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the number of rows for each deck, from highest to lowest number of rows, keeping only the top one.",
+   "chart": null,
+   "hints": null,
+   "correct": false,
+   "expected": [
+    [
+     "C"
+    ]
+   ]
+  },
+  {
+   "dataset": "titanic",
+   "question": "What was the average fare in first class?",
+   "attempts": [
+    {
+     "sql": "SELECT avg(fare) FROM titanic WHERE pclass  ==  1",
+     "error": null,
+     "ttftMs": 695.359999999404,
+     "totalMs": 1206.0949999997392
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "avg(fare)"
+   ],
+   "rows": [
+    [
+     "84.1547"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.2 s · ran in 1 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the average fare, only for rows where pclass == 1.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "84.15468749999992"
+    ]
+   ]
+  },
+  {
+   "dataset": "titanic",
+   "question": "How many passengers were younger than 18?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) FROM titanic WHERE age  <  18",
+     "error": null,
+     "ttftMs": 672.0099999997765,
+     "totalMs": 1108.375
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count_star()"
+   ],
+   "rows": [
+    [
+     "113"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.1 s · ran in 1 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the number of rows, only for rows where age is less than 18.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "113"
+    ]
+   ]
+  },
+  {
+   "dataset": "titanic",
+   "question": "How many passengers travelled alone?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) FROM titanic WHERE alone  =  'true'",
+     "error": null,
+     "ttftMs": 656.3150000004098,
+     "totalMs": 1073.0250000003725
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count_star()"
+   ],
+   "rows": [
+    [
+     "537"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.1 s · ran in 2 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the number of rows, only for rows where alone is “true”.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "537"
+    ]
+   ]
+  },
+  {
+   "dataset": "penguins",
+   "question": "How many penguins are there of each species?",
+   "attempts": [
+    {
+     "sql": "SELECT species ,  count(*) FROM penguins GROUP BY species",
+     "error": null,
+     "ttftMs": 567.1550000002608,
+     "totalMs": 914.0050000008196
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "species",
+    "count_star()"
+   ],
+   "rows": [
+    [
+     "Adelie",
+     "152"
+    ],
+    [
+     "Chinstrap",
+     "68"
+    ],
+    [
+     "Gentoo",
+     "124"
+    ]
+   ],
+   "total_rows": 3,
+   "status": "SQL written in 0.9 s · ran in 9 ms · 3 rows.",
+   "error": null,
+   "explain": "In words: Shows the number of rows for each species.",
+   "chart": "Bar chart of count_star() by species",
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "Adelie",
+     "152"
+    ],
+    [
+     "Chinstrap",
+     "68"
+    ],
+    [
+     "Gentoo",
+     "124"
+    ]
+   ]
+  },
+  {
+   "dataset": "penguins",
+   "question": "What is the average body mass of Gentoo penguins?",
+   "attempts": [
+    {
+     "sql": "SELECT avg(body_mass_g) FROM penguins WHERE species  =  'Gentoo'",
+     "error": null,
+     "ttftMs": 575.4350000005215,
+     "totalMs": 1192.3450000006706
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "avg(body_mass_g)"
+   ],
+   "rows": [
+    [
+     "5076.0163"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.2 s · ran in 2 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the average body_mass_g, only for rows where species is “Gentoo”.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "5076.016260162602"
+    ]
+   ]
+  },
+  {
+   "dataset": "penguins",
+   "question": "Which island has the most penguins?",
+   "attempts": [
+    {
+     "sql": "SELECT island FROM penguins GROUP BY island ORDER BY count(*) DESC LIMIT 1",
+     "error": null,
+     "ttftMs": 556.9900000002235,
+     "totalMs": 1044.8150000004098
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "island"
+   ],
+   "rows": [
+    [
+     "Biscoe"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.0 s · ran in 6 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows each island, from highest to lowest number of rows, keeping only the top one.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "Biscoe"
+    ]
+   ]
+  },
+  {
+   "dataset": "penguins",
+   "question": "What is the longest flipper length?",
+   "attempts": [
+    {
+     "sql": "SELECT max(flipper_length_mm) FROM penguins",
+     "error": null,
+     "ttftMs": 554.5799999991432,
+     "totalMs": 872.0599999995902
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "max(flipper_length_mm)"
+   ],
+   "rows": [
+    [
+     "231"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.9 s · ran in 2 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the highest flipper_length_mm.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "231"
+    ]
+   ]
+  },
+  {
+   "dataset": "penguins",
+   "question": "What is the average bill length for each species?",
+   "attempts": [
+    {
+     "sql": "SELECT species ,  avg(bill_length_mm) FROM penguins GROUP BY species",
+     "error": null,
+     "ttftMs": 527.4599999999627,
+     "totalMs": 993.7849999992177
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "species",
+    "avg(bill_length_mm)"
+   ],
+   "rows": [
+    [
+     "Adelie",
+     "38.7914"
+    ],
+    [
+     "Chinstrap",
+     "48.8338"
+    ],
+    [
+     "Gentoo",
+     "47.5049"
+    ]
+   ],
+   "total_rows": 3,
+   "status": "SQL written in 1.0 s · ran in 2 ms · 3 rows.",
+   "error": null,
+   "explain": "In words: Shows the average bill_length_mm for each species.",
+   "chart": "Bar chart of average bill_length_mm by species",
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "Chinstrap",
+     "48.83382352941177"
+    ],
+    [
+     "Gentoo",
+     "47.504878048780476"
+    ],
+    [
+     "Adelie",
+     "38.79139072847684"
+    ]
+   ]
+  },
+  {
+   "dataset": "penguins",
+   "question": "How many female penguins are there?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) FROM penguins WHERE sex  =  'FEMALE'",
+     "error": null,
+     "ttftMs": 540.265000000596,
+     "totalMs": 975.0099999997765
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count_star()"
+   ],
+   "rows": [
+    [
+     "165"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.0 s · ran in 1 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the number of rows, only for rows where sex is “FEMALE”.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "165"
+    ]
+   ]
+  },
+  {
+   "dataset": "penguins",
+   "question": "Which species is the heaviest on average?",
+   "attempts": [
+    {
+     "sql": "SELECT species FROM penguins WHERE body_mass_g  =  ( SELECT max(body_mass_g) FROM penguins )",
+     "error": null,
+     "ttftMs": 550.4150000000373,
+     "totalMs": 1245.9950000001118
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "species"
+   ],
+   "rows": [
+    [
+     "Gentoo"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.2 s · ran in 15 ms · 1 row.",
+   "error": null,
+   "explain": null,
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "Gentoo"
+    ]
+   ]
+  },
+  {
+   "dataset": "penguins",
+   "question": "How many penguins live on Dream island?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) FROM penguins WHERE island  =  'Dream'",
+     "error": null,
+     "ttftMs": 539.6900000004098,
+     "totalMs": 940.820000000298
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count_star()"
+   ],
+   "rows": [
+    [
+     "124"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.9 s · ran in 1 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the number of rows, only for rows where island is “Dream”.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "124"
+    ]
+   ]
+  },
+  {
+   "dataset": "penguins",
+   "question": "What is the smallest body mass recorded?",
+   "attempts": [
+    {
+     "sql": "SELECT min(body_mass_g) FROM penguins",
+     "error": null,
+     "ttftMs": 573.734999999404,
+     "totalMs": 838.269999999553
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "min(body_mass_g)"
+   ],
+   "rows": [
+    [
+     "2700"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.8 s · ran in 1 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the lowest body_mass_g.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "2700"
+    ]
+   ]
+  },
+  {
+   "dataset": "penguins",
+   "question": "How many different islands are there?",
+   "attempts": [
+    {
+     "sql": "SELECT count(DISTINCT island) FROM penguins",
+     "error": null,
+     "ttftMs": 543.1049999995157,
+     "totalMs": 908.1049999995157
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count(DISTINCT island)"
+   ],
+   "rows": [
+    [
+     "3"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.9 s · ran in 2 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the number of different island values.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "3"
+    ]
+   ]
+  },
+  {
+   "dataset": "mpg",
+   "question": "What is the average mpg of all cars?",
+   "attempts": [
+    {
+     "sql": "SELECT avg(mpg) FROM mpg",
+     "error": null,
+     "ttftMs": 556.4500000001863,
+     "totalMs": 751.2099999999627
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "avg(mpg)"
+   ],
+   "rows": [
+    [
+     "23.5146"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.8 s · ran in 1 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the average mpg.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "23.514572864321615"
+    ]
+   ]
+  },
+  {
+   "dataset": "mpg",
+   "question": "How many cars have 8 cylinders?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) FROM mpg WHERE cylinders  =  8",
+     "error": null,
+     "ttftMs": 571.6550000002608,
+     "totalMs": 937.6650000000373
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count_star()"
+   ],
+   "rows": [
+    [
+     "103"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.9 s · ran in 6 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the number of rows, only for rows where cylinders is 8.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "103"
+    ]
+   ]
+  },
+  {
+   "dataset": "mpg",
+   "question": "Which car has the highest mpg?",
+   "attempts": [
+    {
+     "sql": "SELECT name FROM mpg ORDER BY mpg DESC LIMIT 1",
+     "error": null,
+     "ttftMs": 581.410000000149,
+     "totalMs": 917.625
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "name"
+   ],
+   "rows": [
+    [
+     "mazda glc"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.9 s · ran in 24 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows name, from highest to lowest mpg, keeping only the top one.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "mazda glc"
+    ]
+   ]
+  },
+  {
+   "dataset": "mpg",
+   "question": "What is the average horsepower for each origin?",
+   "attempts": [
+    {
+     "sql": "SELECT origin ,  avg(horsepower) FROM mpg GROUP BY origin",
+     "error": null,
+     "ttftMs": 617.5650000004098,
+     "totalMs": 1044.285000000149
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "origin",
+    "avg(horsepower)"
+   ],
+   "rows": [
+    [
+     "usa",
+     "119.049"
+    ],
+    [
+     "japan",
+     "79.8354"
+    ],
+    [
+     "europe",
+     "80.5588"
+    ]
+   ],
+   "total_rows": 3,
+   "status": "SQL written in 1.0 s · ran in 6 ms · 3 rows.",
+   "error": null,
+   "explain": "In words: Shows the average horsepower for each origin.",
+   "chart": "Bar chart of average horsepower by origin",
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "usa",
+     "119.04897959183674"
+    ],
+    [
+     "europe",
+     "80.55882352941177"
+    ],
+    [
+     "japan",
+     "79.83544303797468"
+    ]
+   ]
+  },
+  {
+   "dataset": "mpg",
+   "question": "How many cars are from Japan?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) FROM mpg WHERE origin  =  'japan'",
+     "error": null,
+     "ttftMs": 576.445000000298,
+     "totalMs": 1004.1350000007078
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count_star()"
+   ],
+   "rows": [
+    [
+     "79"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.0 s · ran in 1 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the number of rows, only for rows where origin is “japan”.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "79"
+    ]
+   ]
+  },
+  {
+   "dataset": "mpg",
+   "question": "What is the heaviest car?",
+   "attempts": [
+    {
+     "sql": "SELECT name FROM mpg ORDER BY weight DESC LIMIT 1",
+     "error": null,
+     "ttftMs": 602.929999999702,
+     "totalMs": 907.609999999404
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "name"
+   ],
+   "rows": [
+    [
+     "pontiac safari (sw)"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.9 s · ran in 4 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows name, from highest to lowest weight, keeping only the top one.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "pontiac safari (sw)"
+    ]
+   ]
+  },
+  {
+   "dataset": "mpg",
+   "question": "What is the average weight of cars made in 1970?",
+   "attempts": [
+    {
+     "sql": "SELECT avg(weight) FROM mpg WHERE model_year  =  1970",
+     "error": null,
+     "ttftMs": 560.5849999999627,
+     "totalMs": 1088.515000000596
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "avg(weight)"
+   ],
+   "rows": [
+    [
+     null
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.1 s · ran in 2 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the average weight, only for rows where model_year is 1970.",
+   "chart": null,
+   "hints": "Nothing matched the filter. The values in the data are:model_year: numbers from 70 to 82Check the values in the SQL, or ask again using these values.",
+   "correct": false,
+   "expected": [
+    [
+     "3372.793103448276"
+    ]
+   ]
+  },
+  {
+   "dataset": "mpg",
+   "question": "How many cars are there for each number of cylinders?",
+   "attempts": [
+    {
+     "sql": "SELECT cylinders ,  count(*) FROM mpg GROUP BY cylinders",
+     "error": null,
+     "ttftMs": 586.9099999992177,
+     "totalMs": 892.7299999995157
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "cylinders",
+    "count_star()"
+   ],
+   "rows": [
+    [
+     "3",
+     "4"
+    ],
+    [
+     "4",
+     "204"
+    ],
+    [
+     "5",
+     "3"
+    ],
+    [
+     "6",
+     "84"
+    ],
+    [
+     "8",
+     "103"
+    ]
+   ],
+   "total_rows": 5,
+   "status": "SQL written in 0.9 s · ran in 3 ms · 5 rows.",
+   "error": null,
+   "explain": "In words: Shows the number of rows for each cylinders.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "3",
+     "4"
+    ],
+    [
+     "4",
+     "204"
+    ],
+    [
+     "5",
+     "3"
+    ],
+    [
+     "6",
+     "84"
+    ],
+    [
+     "8",
+     "103"
+    ]
+   ]
+  },
+  {
+   "dataset": "mpg",
+   "question": "What is the average acceleration of cars with more than 150 horsepower?",
+   "attempts": [
+    {
+     "sql": "SELECT avg(acceleration) FROM mpg WHERE horsepower  >  150",
+     "error": null,
+     "ttftMs": 573.0050000008196,
+     "totalMs": 1109.2050000000745
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "avg(acceleration)"
+   ],
+   "rows": [
+    [
+     "11.8867"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.1 s · ran in 1 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the average acceleration, only for rows where horsepower is more than 150.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "11.886666666666667"
+    ]
+   ]
+  },
+  {
+   "dataset": "mpg",
+   "question": "Which origin has the most cars?",
+   "attempts": [
+    {
+     "sql": "SELECT origin FROM mpg GROUP BY origin ORDER BY count(*) DESC LIMIT 1",
+     "error": null,
+     "ttftMs": 575.785000000149,
+     "totalMs": 1014.4500000001863
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "origin"
+   ],
+   "rows": [
+    [
+     "usa"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.0 s · ran in 2 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows each origin, from highest to lowest number of rows, keeping only the top one.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "usa"
+    ]
+   ]
+  },
+  {
+   "dataset": "diamonds",
+   "question": "What is the average price of a diamond?",
+   "attempts": [
+    {
+     "sql": "SELECT avg(price) FROM diamonds",
+     "error": null,
+     "ttftMs": 583.4050000002608,
+     "totalMs": 738.3300000000745
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "avg(price)"
+   ],
+   "rows": [
+    [
+     "3932.7997"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.7 s · ran in 4 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the average price.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "3932.799721913237"
+    ]
+   ]
+  },
+  {
+   "dataset": "diamonds",
+   "question": "How many diamonds have an Ideal cut?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) FROM diamonds WHERE cut  =  'Ideal'",
+     "error": null,
+     "ttftMs": 589.7250000005588,
+     "totalMs": 987.0750000001863
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count_star()"
+   ],
+   "rows": [
+    [
+     "21551"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.0 s · ran in 3 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the number of rows, only for rows where cut is “Ideal”.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "21551"
+    ]
+   ]
+  },
+  {
+   "dataset": "diamonds",
+   "question": "What is the carat weight of the most expensive diamond?",
+   "attempts": [
+    {
+     "sql": "SELECT carat FROM diamonds ORDER BY price DESC LIMIT 1",
+     "error": null,
+     "ttftMs": 589.589999999851,
+     "totalMs": 957.605000000447
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "carat"
+   ],
+   "rows": [
+    [
+     "2.29"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.0 s · ran in 30 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows carat, from highest to lowest price, keeping only the top one.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "2.29"
+    ]
+   ]
+  },
+  {
+   "dataset": "diamonds",
+   "question": "What is the average price for each cut?",
+   "attempts": [
+    {
+     "sql": "SELECT avg(price) ,  cut FROM diamonds GROUP BY cut",
+     "error": null,
+     "ttftMs": 575.1200000001118,
+     "totalMs": 937.7749999994412
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "avg(price)",
+    "cut"
+   ],
+   "rows": [
+    [
+     "3457.542",
+     "Ideal"
+    ],
+    [
+     "4584.2577",
+     "Premium"
+    ],
+    [
+     "3928.8645",
+     "Good"
+    ],
+    [
+     "3981.7599",
+     "Very Good"
+    ],
+    [
+     "4358.7578",
+     "Fair"
+    ]
+   ],
+   "total_rows": 5,
+   "status": "SQL written in 0.9 s · ran in 10 ms · 5 rows.",
+   "error": null,
+   "explain": "In words: Shows the average price for each cut.",
+   "chart": "Bar chart of average price by cut",
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "Premium",
+     "4584.2577042999055"
+    ],
+    [
+     "Ideal",
+     "3457.541970210199"
+    ],
+    [
+     "Good",
+     "3928.864451691806"
+    ],
+    [
+     "Fair",
+     "4358.757763975155"
+    ],
+    [
+     "Very Good",
+     "3981.7598907465654"
+    ]
+   ]
+  },
+  {
+   "dataset": "diamonds",
+   "question": "How many diamonds weigh more than 2 carats?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) FROM diamonds WHERE carat  >  2",
+     "error": null,
+     "ttftMs": 596.2949999999255,
+     "totalMs": 975.4749999996275
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count_star()"
+   ],
+   "rows": [
+    [
+     "1889"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.0 s · ran in 4 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the number of rows, only for rows where carat is more than 2.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "1889"
+    ]
+   ]
+  },
+  {
+   "dataset": "diamonds",
+   "question": "Which color has the highest average price?",
+   "attempts": [
+    {
+     "sql": "SELECT color FROM diamonds GROUP BY color ORDER BY avg(price) DESC LIMIT 1",
+     "error": null,
+     "ttftMs": 580.0600000005215,
+     "totalMs": 1075.1650000000373
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "color"
+   ],
+   "rows": [
+    [
+     "J"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.1 s · ran in 6 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows each color, from highest to lowest average price, keeping only the top one.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "J"
+    ]
+   ]
+  },
+  {
+   "dataset": "diamonds",
+   "question": "What is the cheapest price for a diamond with clarity IF?",
+   "attempts": [
+    {
+     "sql": "SELECT min(price) FROM diamonds WHERE clarity  =  'IF'",
+     "error": null,
+     "ttftMs": 613.019999999553,
+     "totalMs": 1040.8799999998882
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "min(price)"
+   ],
+   "rows": [
+    [
+     "369"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.0 s · ran in 2 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the lowest price, only for rows where clarity is “IF”.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "369"
+    ]
+   ]
+  },
+  {
+   "dataset": "diamonds",
+   "question": "What is the average table value?",
+   "attempts": [
+    {
+     "sql": "SELECT avg(table_col) FROM diamonds",
+     "error": null,
+     "ttftMs": 628.1150000002235,
+     "totalMs": 828.160000000149
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "avg(table_col)"
+   ],
+   "rows": [
+    [
+     "57.4572"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 0.8 s · ran in 4 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the average table_col.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "57.45718390804603"
+    ]
+   ]
+  },
+  {
+   "dataset": "diamonds",
+   "question": "How many diamonds are there for each clarity?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) ,  clarity FROM diamonds GROUP BY clarity",
+     "error": null,
+     "ttftMs": 691.1299999998882,
+     "totalMs": 1014.125
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count_star()",
+    "clarity"
+   ],
+   "rows": [
+    [
+     "9194",
+     "SI2"
+    ],
+    [
+     "13065",
+     "SI1"
+    ],
+    [
+     "8171",
+     "VS1"
+    ],
+    [
+     "12258",
+     "VS2"
+    ],
+    [
+     "5066",
+     "VVS2"
+    ],
+    [
+     "3655",
+     "VVS1"
+    ],
+    [
+     "741",
+     "I1"
+    ],
+    [
+     "1790",
+     "IF"
+    ]
+   ],
+   "total_rows": 8,
+   "status": "SQL written in 1.0 s · ran in 3 ms · 8 rows.",
+   "error": null,
+   "explain": "In words: Shows the number of rows for each clarity.",
+   "chart": "Bar chart of count_star() by clarity",
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "SI1",
+     "13065"
+    ],
+    [
+     "VVS2",
+     "5066"
+    ],
+    [
+     "VVS1",
+     "3655"
+    ],
+    [
+     "I1",
+     "741"
+    ],
+    [
+     "VS1",
+     "8171"
+    ]
+   ]
+  },
+  {
+   "dataset": "diamonds",
+   "question": "What is the average carat of Premium diamonds?",
+   "attempts": [
+    {
+     "sql": "SELECT avg(carat) FROM diamonds WHERE cut  =  'Premium'",
+     "error": null,
+     "ttftMs": 578.554999999702,
+     "totalMs": 1186.4900000002235
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "avg(carat)"
+   ],
+   "rows": [
+    [
+     "0.892"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 1.2 s · ran in 2 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the average carat, only for rows where cut is “Premium”.",
+   "chart": null,
+   "hints": null,
+   "correct": true,
+   "expected": [
+    [
+     "0.8919548981219524"
+    ]
+   ]
+  }
+ ],
+ "summary": {
+  "questions": 50,
+  "correct": 47,
+  "ran_but_wrong": 3,
+  "failed_to_run": 0,
+  "first_attempt_failed": 0,
+  "rescued_by_repair": 0,
+  "rescued_and_correct": 0,
+  "zero_rows_with_hints": 1,
+  "median_sql_seconds": 0.9579950000001117,
+  "by_dataset": {
+   "tips": {
+    "questions": 10,
+    "correct": 10
+   },
+   "titanic": {
+    "questions": 10,
+    "correct": 8
+   },
+   "penguins": {
+    "questions": 10,
+    "correct": 10
+   },
+   "mpg": {
+    "questions": 10,
+    "correct": 9
+   },
+   "diamonds": {
+    "questions": 10,
+    "correct": 10
+   }
+  }
+ }
+}

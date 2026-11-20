@@ -1,0 +1,67 @@
+[
+ {
+  "case": "no WebGPU: CPU fallback offered",
+  "ok": true,
+  "detail": "banner='CPU mode was requested (?device=wasm). SQLocal will run the model on the CPU instead. That'… options=[['Standard: 1.5B, 982 MB (Apache 2.0)', False], ['High accuracy: 3B (needs WebGPU)', True]]"
+ },
+ {
+  "case": "first download asks first",
+  "ok": true,
+  "detail": "button='Download model (877 MB)', model requests=0"
+ },
+ {
+  "case": "SQL error shown",
+  "ok": true,
+  "detail": "Binder Error: Referenced column \"regoin\" not found in FROM clause!\nCandidate bindings: \"region\", \"revenue\", \"order_id\", "
+ },
+ {
+  "case": "fixed SQL re-runs, with chart and explanation",
+  "ok": true,
+  "detail": "rows=4 chart='Bar chart of total revenue by region' explain='In words: Shows the total revenue for each region, from highest to lowest total revenue.'"
+ },
+ {
+  "case": "non-SELECT blocked",
+  "ok": true,
+  "detail": "Only SELECT queries can be run (the query must start with SELECT or WITH)."
+ },
+ {
+  "case": "write hidden in WITH blocked",
+  "ok": true,
+  "detail": "Only read-only queries can be run (\"INSERT\" is not allowed)."
+ },
+ {
+  "case": "0 rows: says so and lists real values",
+  "ok": true,
+  "detail": "status='ran in 1 ms · 0 rows: the query ran, but no row matched.' hints='Nothing matched the filter. The values in the data are:region: “South”, “North”, “West”, “East”Check the values in the SQL, or ask again using these values.'"
+ },
+ {
+  "case": "aggregate over nothing: number range shown",
+  "ok": true,
+  "detail": "Nothing matched the filter. The values in the data are:quantity: numbers from 1 to 12Check the values in the SQL, or ask again using these values."
+ },
+ {
+  "case": "value case fixed to match the data",
+  "ok": true,
+  "detail": "sql=\"SELECT count(*) FROM sales WHERE region = 'North'\" note='Changed “north” to “North” to match the spelling in region. In words: Shows the number of rows, only for rows where region is “North”.'"
+ },
+ {
+  "case": "time result drawn as a line",
+  "ok": true,
+  "detail": "Line chart of total revenue by month"
+ },
+ {
+  "case": "odd column names: original headers in table and CSV",
+  "ok": true,
+  "detail": "headers=['Thành phố', 'sum(doanh_thu_vnd)'] csv header='Thành phố,sum(doanh_thu_vnd)'"
+ },
+ {
+  "case": "large file: 100 rows shown, full CSV export",
+  "ok": true,
+  "detail": "19 MB loaded in 1.5 s; status='ran in 1042 ms · 1,000,000 rows (showing the first 100; download the CSV for all).'; exported lines=1,000,001"
+ },
+ {
+  "case": "large file: aggregate query",
+  "ok": true,
+  "detail": "ran in 38 ms · 4 rows."
+ }
+]

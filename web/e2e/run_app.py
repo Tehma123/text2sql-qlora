@@ -116,10 +116,13 @@ def wait_for(page, js: str, timeout_s: float, what: str):
     raise TimeoutError(f"{what} did not happen within {timeout_s}s")
 
 
+ASK_TIMEOUT_S = 180
+
+
 def ask(page, question: str) -> dict:
     page.fill("#question", question)
     page.click("#ask")
-    wait_for(page, f"window.__sqlocal.lastAsk?.question === {json.dumps(question)} && window.__sqlocal.lastAsk.done", 180, f"answer to {question!r}")
+    wait_for(page, f"window.__sqlocal.lastAsk?.question === {json.dumps(question)} && window.__sqlocal.lastAsk.done", ASK_TIMEOUT_S, f"answer to {question!r}")
     return page.evaluate(
         """() => {
           const s = window.__sqlocal;
@@ -133,6 +136,9 @@ def ask(page, question: str) -> dict:
             total_rows: r?.total ?? null,
             status: document.getElementById('result-status').textContent,
             error: document.getElementById('error').hidden ? null : document.getElementById('error').textContent,
+            explain: document.getElementById('explain').hidden ? null : document.getElementById('explain').textContent,
+            chart: document.getElementById('chart').hidden ? null : document.querySelector('#chart svg')?.getAttribute('aria-label'),
+            hints: document.getElementById('hints').hidden ? null : document.getElementById('hints').textContent,
           };
         }"""
     )
@@ -145,12 +151,16 @@ def check(page, report: dict, data: str, question: str, accepted) -> None:
     verdict = "correct" if r["correct"] else ("WRONG" if r["ok"] else "ERROR")
     shown = r["rows"][:3] if r["rows"] else r["error"]
     print(f"[{verdict}] {question}\n    {r['attempts'][-1]['sql']}\n    rows={r['total_rows']} {shown}", flush=True)
+    for key in ("explain", "chart", "hints"):
+        if r.get(key):
+            print(f"    {key}: {r[key]}", flush=True)
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", help="test a deployed copy instead of serving web/app locally")
     parser.add_argument("--model", choices=list(MODEL_INDEX), default="1.5b")
+    parser.add_argument("--device", choices=["webgpu", "wasm"], default="webgpu", help="wasm: force the CPU fallback (?device=wasm)")
     parser.add_argument("--port", type=int, default=8766)
     parser.add_argument("--channel", default="msedge")
     parser.add_argument("--profile", help="browser profile dir to reuse (keeps the cached model)")
@@ -163,8 +173,12 @@ def main():
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows console: Vietnamese column names
 
     url = args.url or f"http://127.0.0.1:{args.port}/"
+    if args.device == "wasm":
+        url += "?device=wasm"
+        global ASK_TIMEOUT_S
+        ASK_TIMEOUT_S = 900
     server = None if args.url else serve(args.port)
-    label = args.label or f"{'pages' if args.url else 'local'}_{args.model}"
+    label = args.label or f"{'pages' if args.url else 'local'}_{args.model}{'_wasm' if args.device == 'wasm' else ''}"
     report = {"url": url, "model": args.model, "questions": []}
 
     tmp = tempfile.TemporaryDirectory(prefix="sqlocal-profile-")
@@ -192,6 +206,8 @@ def main():
         wait_for(page, "window.__sqlocal.modelReady", 900, "model load")
         report["model_load_s"] = round(time.time() - t0, 1)
         report["model_status"] = page.text_content("#model-status")
+        report["cross_origin_isolated"] = page.evaluate("window.crossOriginIsolated")
+        print(f"cross-origin isolated: {report['cross_origin_isolated']}", flush=True)
         print(f"model ready in {report['model_load_s']} s (cached={report['model_was_cached']})", flush=True)
 
         # 1. Sample data and its questions.

@@ -1,0 +1,419 @@
+{
+ "url": "http://127.0.0.1:8766/?device=wasm",
+ "model": "1.5b",
+ "questions": [
+  {
+   "data": "sample",
+   "question": "What is the total revenue for each region?",
+   "attempts": [
+    {
+     "sql": "SELECT sum(revenue) ,  region FROM sales GROUP BY region",
+     "error": null,
+     "ttftMs": 9829.75,
+     "totalMs": 26011.24500000011
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "sum(revenue)",
+    "region"
+   ],
+   "rows": [
+    [
+     "33383.5",
+     "East"
+    ],
+    [
+     "45050",
+     "South"
+    ],
+    [
+     "37503.5",
+     "North"
+    ],
+    [
+     "35295.5",
+     "West"
+    ]
+   ],
+   "total_rows": 4,
+   "status": "SQL written in 26.0 s · ran in 12 ms · 4 rows.",
+   "error": null,
+   "explain": "In words: Shows the total revenue for each region.",
+   "chart": "Bar chart of total revenue by region",
+   "hints": null,
+   "correct": true
+  },
+  {
+   "data": "sample",
+   "question": "Which 3 products sold the most units?",
+   "attempts": [
+    {
+     "sql": "SELECT product FROM sales GROUP BY product ORDER BY sum(quantity) DESC LIMIT 3",
+     "error": null,
+     "ttftMs": 9708.090000000782,
+     "totalMs": 29748.270000000484
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "product"
+   ],
+   "rows": [
+    [
+     "Pen Set"
+    ],
+    [
+     "Keyboard"
+    ],
+    [
+     "Backpack"
+    ]
+   ],
+   "total_rows": 3,
+   "status": "SQL written in 29.7 s · ran in 11 ms · 3 rows.",
+   "error": null,
+   "explain": "In words: Shows each product, from highest to lowest total quantity, keeping the first 3.",
+   "chart": null,
+   "hints": null,
+   "correct": true
+  },
+  {
+   "data": "sample",
+   "question": "How many orders came from new customers?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) FROM sales WHERE customer_type  =  'New'",
+     "error": null,
+     "ttftMs": 10215.765000000596,
+     "totalMs": 27914.81000000052
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count_star()"
+   ],
+   "rows": [
+    [
+     "120"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 27.9 s · ran in 14 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the number of rows, only for rows where customer_type is “New”.",
+   "chart": null,
+   "hints": null,
+   "correct": true
+  },
+  {
+   "data": "sample",
+   "question": "What is the average order revenue per category?",
+   "attempts": [
+    {
+     "sql": "SELECT avg(revenue) ,  category FROM sales GROUP BY category",
+     "error": null,
+     "ttftMs": 9877.56500000041,
+     "totalMs": 26416.91000000015
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "avg(revenue)",
+    "category"
+   ],
+   "rows": [
+    [
+     "462.9787",
+     "Furniture"
+    ],
+    [
+     "827.2288",
+     "Electronics"
+    ],
+    [
+     "114.767",
+     "Stationery"
+    ]
+   ],
+   "total_rows": 3,
+   "status": "SQL written in 26.4 s · ran in 4 ms · 3 rows.",
+   "error": null,
+   "explain": "In words: Shows the average revenue for each category.",
+   "chart": "Bar chart of average revenue by category",
+   "hints": null,
+   "correct": true
+  },
+  {
+   "data": "sample",
+   "question": "How many orders were placed in March 2024?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) FROM sales WHERE CAST(order_date AS VARCHAR) ILIKE '2024-03%'",
+     "error": null,
+     "ttftMs": 9898.214999999851,
+     "totalMs": 33360.81999999937
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count_star()"
+   ],
+   "rows": [
+    [
+     "46"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 33.4 s · ran in 6 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the number of rows, only for rows where order_date starts with “2024-03”.",
+   "chart": null,
+   "hints": null,
+   "correct": true
+  },
+  {
+   "data": "sample",
+   "question": "What was the total revenue for each month?",
+   "attempts": [
+    {
+     "sql": "SELECT sum(revenue) ,  strftime('%Y-%m', order_date) FROM sales GROUP BY strftime('%Y-%m', order_date)",
+     "error": null,
+     "ttftMs": 10038.929999999702,
+     "totalMs": 47713.99000000022
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "sum(revenue)",
+    "strftime('%Y-%m', order_date)"
+   ],
+   "rows": [
+    [
+     "20357.5",
+     "2024-01"
+    ],
+    [
+     "24672",
+     "2024-02"
+    ],
+    [
+     "30114",
+     "2024-03"
+    ],
+    [
+     "17088.5",
+     "2024-04"
+    ],
+    [
+     "33187.5",
+     "2024-05"
+    ],
+    [
+     "25813",
+     "2024-06"
+    ]
+   ],
+   "total_rows": 6,
+   "status": "SQL written in 47.7 s · ran in 5 ms · 6 rows.",
+   "error": null,
+   "explain": "In words: Shows the total revenue for each month of order_date.",
+   "chart": "Line chart of total revenue by month of order_date",
+   "hints": null,
+   "correct": true
+  },
+  {
+   "data": "sample",
+   "question": "Which region had the highest total revenue from Furniture?",
+   "attempts": [
+    {
+     "sql": "SELECT region FROM sales WHERE category  =  'Furniture' GROUP BY region ORDER BY sum(revenue) DESC LIMIT 1",
+     "error": null,
+     "ttftMs": 9907.979999999516,
+     "totalMs": 43555.34499999974
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "region"
+   ],
+   "rows": [
+    [
+     "South"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 43.6 s · ran in 4 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows each region, only for rows where category is “Furniture”, from highest to lowest total revenue, keeping only the top one.",
+   "chart": null,
+   "hints": null,
+   "correct": true
+  },
+  {
+   "data": "sample",
+   "question": "What is the largest single order revenue?",
+   "attempts": [
+    {
+     "sql": "SELECT max(revenue) FROM sales",
+     "error": null,
+     "ttftMs": 9873.5,
+     "totalMs": 17872.080000000075
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "max(revenue)"
+   ],
+   "rows": [
+    [
+     "2697"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 17.9 s · ran in 3 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the highest revenue.",
+   "chart": null,
+   "hints": null,
+   "correct": true
+  },
+  {
+   "data": "sample",
+   "question": "What percentage of orders are from returning customers?",
+   "attempts": [
+    {
+     "sql": "SELECT count(*) * 100 / ( SELECT count(*) FROM sales WHERE customer_type  =  'Returning' ) FROM sales",
+     "error": null,
+     "ttftMs": 9673.535000000149,
+     "totalMs": 44688.830000000075
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "((count_star() * 100) / (SELECT count_star() FROM sales WHERE (customer_type = 'Returning')))"
+   ],
+   "rows": [
+    [
+     "166.6667"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 44.7 s · ran in 18 ms · 1 row.",
+   "error": null,
+   "explain": null,
+   "chart": null,
+   "hints": null,
+   "correct": false
+  },
+  {
+   "data": "sample",
+   "question": "How many different products were sold in the West region?",
+   "attempts": [
+    {
+     "sql": "SELECT count(DISTINCT product) FROM sales WHERE region  =  'West'",
+     "error": null,
+     "ttftMs": 9981.13000000082,
+     "totalMs": 31435.365000000224
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "count(DISTINCT product)"
+   ],
+   "rows": [
+    [
+     "10"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 31.4 s · ran in 6 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows the number of different product values, only for rows where region is “West”.",
+   "chart": null,
+   "hints": null,
+   "correct": true
+  },
+  {
+   "data": "accent",
+   "question": "What is the total revenue in each city?",
+   "attempts": [
+    {
+     "sql": "SELECT sum(doanh_thu_vnd) ,  thanh_pho FROM khach_hang GROUP BY thanh_pho",
+     "error": null,
+     "ttftMs": 8637.740000000224,
+     "totalMs": 42183.15500000026
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "sum(doanh_thu_vnd)",
+    "thanh_pho"
+   ],
+   "rows": [
+    [
+     "1650000",
+     "Hà Nội"
+    ],
+    [
+     "800000",
+     "Đà Nẵng"
+    ],
+    [
+     "3290000",
+     "TP HCM"
+    ]
+   ],
+   "total_rows": 3,
+   "status": "SQL written in 42.2 s · ran in 15 ms · 3 rows.",
+   "error": null,
+   "explain": "In words: Shows the total “Doanh thu (VND)” for each “Thành phố”.",
+   "chart": "Bar chart of total Doanh thu (VND) by Thành phố",
+   "hints": null,
+   "correct": true
+  },
+  {
+   "data": "accent",
+   "question": "Which customer has the highest revenue?",
+   "attempts": [
+    {
+     "sql": "SELECT ten_khach_hang FROM khach_hang ORDER BY doanh_thu_vnd DESC LIMIT 1",
+     "error": null,
+     "ttftMs": 8372.025000000373,
+     "totalMs": 40351.140000000596
+    }
+   ],
+   "ok": true,
+   "columns": [
+    "ten_khach_hang"
+   ],
+   "rows": [
+    [
+     "Dũng"
+    ]
+   ],
+   "total_rows": 1,
+   "status": "SQL written in 40.4 s · ran in 27 ms · 1 row.",
+   "error": null,
+   "explain": "In words: Shows “Tên khách hàng”, from highest to lowest “Doanh thu (VND)”, keeping only the top one.",
+   "chart": null,
+   "hints": null,
+   "correct": true
+  }
+ ],
+ "model_was_cached": false,
+ "model_load_s": 33.2,
+ "model_status": "Model ready on the CPU (loaded in 32.9 s). It is saved in your browser for next time.",
+ "cross_origin_isolated": true,
+ "sample_status": "Loaded table sales: 300 rows, 9 columns.",
+ "delete_blocked": "Only SELECT queries can be run (the query must start with SELECT or WITH).",
+ "rows_after_delete_attempt": 300,
+ "accent_status": "Loaded table khach_hang: 5 rows, 4 columns. 4 column names were simplified for SQL (see below).",
+ "accent_schema": "CREATE TABLE \"khach_hang\" (\n  \"ten_khach_hang\" TEXT,\n  \"thanh_pho\" TEXT,\n  \"doanh_thu_vnd\" NUMBER,\n  \"ngay_mua\" TIME\n);\n\n/* 3 example rows from \"khach_hang\":\nten_khach_hang | thanh_pho | doanh_thu_vnd | ngay_mua\nAn | Hà Nội | 1200000 | 2024-03-01\nBình | Đà Nẵng | 800000 | 2024-03-02\nChi | Hà Nội | 450000 | 2024-03-05\n*/",
+ "summary": {
+  "questions": 12,
+  "ran": 12,
+  "correct": 11,
+  "fixed_by_repair": 0
+ }
+}
