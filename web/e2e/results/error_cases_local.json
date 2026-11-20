@@ -57,11 +57,11 @@
  {
   "case": "large file: 100 rows shown, full CSV export",
   "ok": true,
-  "detail": "19 MB loaded in 1.5 s; status='ran in 1042 ms · 1,000,000 rows (showing the first 100; download the CSV for all).'; exported lines=1,000,001"
+  "detail": "19 MB loaded in 1.0 s; status='ran in 904 ms · 1,000,000 rows (showing the first 100; download the CSV for all).'; exported lines=1,000,001"
  },
  {
   "case": "large file: aggregate query",
   "ok": true,
-  "detail": "ran in 38 ms · 4 rows."
+  "detail": "ran in 31 ms · 4 rows."
  }
 ]

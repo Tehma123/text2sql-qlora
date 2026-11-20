@@ -211,7 +211,10 @@ def main():
         print(f"model ready in {report['model_load_s']} s (cached={report['model_was_cached']})", flush=True)
 
         # 1. Sample data and its questions.
-        page.click("#sample-load")
+        # the app loads the sample data by itself on first open; wait for that instead of racing it
+        page.wait_for_function("window.__sqlocal.table === 'sales'", timeout=60_000)
+        if page.evaluate("window.__sqlocal.table") != "sales":
+            page.click("#sample-load")
         wait_for(page, "window.__sqlocal.table === 'sales'", 60, "sample load")
         report["sample_status"] = page.text_content("#data-status")
         for q, accepted in SAMPLE_CHECKS:

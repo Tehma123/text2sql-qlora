@@ -9,8 +9,8 @@
     {
      "sql": "SELECT sum(revenue) ,  region FROM sales GROUP BY region",
      "error": null,
-     "ttftMs": 958.3999999999069,
-     "totalMs": 1585.8999999999069
+     "ttftMs": 583.0949999997392,
+     "totalMs": 838.4050000002608
     }
    ],
    "ok": true,
@@ -37,10 +37,10 @@
     ]
    ],
    "total_rows": 4,
-   "status": "SQL written in 1.6 s · ran in 15 ms · 4 rows.",
+   "status": "SQL written in 0.8 s · ran in 10 ms · 4 rows.",
    "error": null,
    "explain": "In words: Shows the total revenue for each region.",
-   "chart": "Bar chart of sum(revenue) by region",
+   "chart": "Bar chart of total revenue by region",
    "hints": null,
    "correct": true
   },
@@ -51,8 +51,8 @@
     {
      "sql": "SELECT product FROM sales GROUP BY product ORDER BY sum(quantity) DESC LIMIT 3",
      "error": null,
-     "ttftMs": 719,
-     "totalMs": 1454.4000000003725
+     "ttftMs": 269.34499999973923,
+     "totalMs": 547.0349999992177
     }
    ],
    "ok": true,
@@ -71,7 +71,7 @@
     ]
    ],
    "total_rows": 3,
-   "status": "SQL written in 1.5 s · ran in 12 ms · 3 rows.",
+   "status": "SQL written in 0.5 s · ran in 5 ms · 3 rows.",
    "error": null,
    "explain": "In words: Shows each product, from highest to lowest total quantity, keeping the first 3.",
    "chart": null,
@@ -85,8 +85,8 @@
     {
      "sql": "SELECT count(*) FROM sales WHERE customer_type  =  'New'",
      "error": null,
-     "ttftMs": 719.2000000001863,
-     "totalMs": 1355.1000000000931
+     "ttftMs": 284.195000000298,
+     "totalMs": 514.6900000004098
     }
    ],
    "ok": true,
@@ -99,7 +99,7 @@
     ]
    ],
    "total_rows": 1,
-   "status": "SQL written in 1.4 s · ran in 9 ms · 1 row.",
+   "status": "SQL written in 0.5 s · ran in 1 ms · 1 row.",
    "error": null,
    "explain": "In words: Shows the number of rows, only for rows where customer_type is “New”.",
    "chart": null,
@@ -113,8 +113,8 @@
     {
      "sql": "SELECT avg(revenue) ,  category FROM sales GROUP BY category",
      "error": null,
-     "ttftMs": 851.7000000001863,
-     "totalMs": 1363
+     "ttftMs": 260.79000000003725,
+     "totalMs": 466.2949999999255
     }
    ],
    "ok": true,
@@ -137,10 +137,10 @@
     ]
    ],
    "total_rows": 3,
-   "status": "SQL written in 1.4 s · ran in 3 ms · 3 rows.",
+   "status": "SQL written in 0.5 s · ran in 2 ms · 3 rows.",
    "error": null,
    "explain": "In words: Shows the average revenue for each category.",
-   "chart": "Bar chart of avg(revenue) by category",
+   "chart": "Bar chart of average revenue by category",
    "hints": null,
    "correct": true
   },
@@ -151,8 +151,8 @@
     {
      "sql": "SELECT count(*) FROM sales WHERE CAST(order_date AS VARCHAR) ILIKE '2024-03%'",
      "error": null,
-     "ttftMs": 668,
-     "totalMs": 1467.7000000001863
+     "ttftMs": 252.00999999977648,
+     "totalMs": 537.0800000000745
     }
    ],
    "ok": true,
@@ -165,7 +165,7 @@
     ]
    ],
    "total_rows": 1,
-   "status": "SQL written in 1.5 s · ran in 6 ms · 1 row.",
+   "status": "SQL written in 0.5 s · ran in 3 ms · 1 row.",
    "error": null,
    "explain": "In words: Shows the number of rows, only for rows where order_date starts with “2024-03”.",
    "chart": null,
@@ -179,8 +179,8 @@
     {
      "sql": "SELECT sum(revenue) ,  strftime('%Y-%m', order_date) FROM sales GROUP BY strftime('%Y-%m', order_date)",
      "error": null,
-     "ttftMs": 719.6000000000931,
-     "totalMs": 2281.100000000093
+     "ttftMs": 245.6949999993667,
+     "totalMs": 731.7099999999627
     }
    ],
    "ok": true,
@@ -215,10 +215,10 @@
     ]
    ],
    "total_rows": 6,
-   "status": "SQL written in 2.3 s · ran in 4 ms · 6 rows.",
+   "status": "SQL written in 0.7 s · ran in 3 ms · 6 rows.",
    "error": null,
-   "explain": "In words: Shows the total revenue for each the month of order_date.",
-   "chart": "Line chart of sum(revenue) by strftime('%Y-%m', order_date)",
+   "explain": "In words: Shows the total revenue for each month of order_date.",
+   "chart": "Line chart of total revenue by month of order_date",
    "hints": null,
    "correct": true
   },
@@ -229,8 +229,8 @@
     {
      "sql": "SELECT region FROM sales WHERE category  =  'Furniture' GROUP BY region ORDER BY sum(revenue) DESC LIMIT 1",
      "error": null,
-     "ttftMs": 727.3000000002794,
-     "totalMs": 2174.600000000093
+     "ttftMs": 271.84999999962747,
+     "totalMs": 709.4500000001863
     }
    ],
    "ok": true,
@@ -243,7 +243,7 @@
     ]
    ],
    "total_rows": 1,
-   "status": "SQL written in 2.2 s · ran in 2 ms · 1 row.",
+   "status": "SQL written in 0.7 s · ran in 2 ms · 1 row.",
    "error": null,
    "explain": "In words: Shows each region, only for rows where category is “Furniture”, from highest to lowest total revenue, keeping only the top one.",
    "chart": null,
@@ -257,8 +257,8 @@
     {
      "sql": "SELECT max(revenue) FROM sales",
      "error": null,
-     "ttftMs": 721.8999999999069,
-     "totalMs": 988
+     "ttftMs": 246.964999999851,
+     "totalMs": 338.26999999955297
     }
    ],
    "ok": true,
@@ -271,7 +271,7 @@
     ]
    ],
    "total_rows": 1,
-   "status": "SQL written in 1.0 s · ran in 2 ms · 1 row.",
+   "status": "SQL written in 0.3 s · ran in 2 ms · 1 row.",
    "error": null,
    "explain": "In words: Shows the highest revenue.",
    "chart": null,
@@ -285,8 +285,8 @@
     {
      "sql": "SELECT count(*) * 100 / ( SELECT count(*) FROM sales WHERE customer_type  =  'Returning' ) FROM sales",
      "error": null,
-     "ttftMs": 740.3000000002794,
-     "totalMs": 2030.2000000001863
+     "ttftMs": 256.3500000005588,
+     "totalMs": 725.1750000007451
     }
    ],
    "ok": true,
@@ -299,7 +299,7 @@
     ]
    ],
    "total_rows": 1,
-   "status": "SQL written in 2.0 s · ran in 11 ms · 1 row.",
+   "status": "SQL written in 0.7 s · ran in 10 ms · 1 row.",
    "error": null,
    "explain": null,
    "chart": null,
@@ -313,8 +313,8 @@
     {
      "sql": "SELECT count(DISTINCT product) FROM sales WHERE region  =  'West'",
      "error": null,
-     "ttftMs": 797.2999999998137,
-     "totalMs": 1449.2999999998137
+     "ttftMs": 249.5800000000745,
+     "totalMs": 511.4400000004098
     }
    ],
    "ok": true,
@@ -327,7 +327,7 @@
     ]
    ],
    "total_rows": 1,
-   "status": "SQL written in 1.4 s · ran in 4 ms · 1 row.",
+   "status": "SQL written in 0.5 s · ran in 3 ms · 1 row.",
    "error": null,
    "explain": "In words: Shows the number of different product values, only for rows where region is “West”.",
    "chart": null,
@@ -341,8 +341,8 @@
     {
      "sql": "SELECT sum(doanh_thu_vnd) ,  thanh_pho FROM khach_hang GROUP BY thanh_pho",
      "error": null,
-     "ttftMs": 507.10000000009313,
-     "totalMs": 1429.8000000002794
+     "ttftMs": 240.85500000044703,
+     "totalMs": 672.480000000447
     }
    ],
    "ok": true,
@@ -365,10 +365,10 @@
     ]
    ],
    "total_rows": 3,
-   "status": "SQL written in 1.4 s · ran in 12 ms · 3 rows.",
+   "status": "SQL written in 0.7 s · ran in 10 ms · 3 rows.",
    "error": null,
    "explain": "In words: Shows the total doanh_thu_vnd for each thanh_pho.",
-   "chart": "Bar chart of sum(doanh_thu_vnd) by Thành phố",
+   "chart": "Bar chart of total Doanh thu (VND) by Thành phố",
    "hints": null,
    "correct": true
   },
@@ -379,8 +379,8 @@
     {
      "sql": "SELECT ten_khach_hang FROM khach_hang ORDER BY doanh_thu_vnd DESC LIMIT 1",
      "error": null,
-     "ttftMs": 558.6999999997206,
-     "totalMs": 1464
+     "ttftMs": 209.5,
+     "totalMs": 613.7199999997392
     }
    ],
    "ok": true,
@@ -393,7 +393,7 @@
     ]
    ],
    "total_rows": 1,
-   "status": "SQL written in 1.5 s · ran in 28 ms · 1 row.",
+   "status": "SQL written in 0.6 s · ran in 20 ms · 1 row.",
    "error": null,
    "explain": "In words: Shows ten_khach_hang, from highest to lowest doanh_thu_vnd, keeping only the top one.",
    "chart": null,
@@ -402,9 +402,10 @@
   }
  ],
  "model_was_cached": true,
- "model_load_s": 5.1,
- "model_status": "Model ready (loaded in 5.6 s). It is saved in your browser for next time.",
- "sample_status": "Loaded table sales: 300 rows, 9 columns.",
+ "model_load_s": 2.0,
+ "model_status": "Model ready (loaded in 2.5 s). It is saved in your browser for next time.",
+ "cross_origin_isolated": true,
+ "sample_status": "Loaded table sales: 300 rows, 9 columns. This is made-up sample data: drop your own CSV to replace it.",
  "delete_blocked": "Only SELECT queries can be run (the query must start with SELECT or WITH).",
  "rows_after_delete_attempt": 300,
  "accent_status": "Loaded table khach_hang: 5 rows, 4 columns. 4 column names were simplified for SQL (see below).",

@@ -103,7 +103,10 @@ def main():
         check("first download asks first", page.is_visible("#model-load") and "877 MB" in page.text_content("#model-load")
               and not model_requests, f"button={page.text_content('#model-load')!r}, model requests={len(model_requests)}")
 
-        page.click("#sample-load")
+        # the app loads the sample data by itself on first open; wait for that instead of racing it
+        page.wait_for_function("window.__sqlocal.table === 'sales'", timeout=60_000)
+        if page.evaluate("window.__sqlocal.table") != "sales":
+            page.click("#sample-load")
         run_app.wait_for(page, "window.__sqlocal.table === 'sales'", 60, "sample")
         page.evaluate("document.getElementById('result-card').hidden = false")
 
