@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SQLocal</title>
-<meta name="description" content="Ask questions about a CSV file in plain English. Runs entirely in your browser; your data never leaves your machine.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%232f5bd3'/><text x='16' y='22' font-size='14' text-anchor='middle' fill='white' font-family='monospace'>SQL</text></svg>">
+<meta name="description" content="Ask questions about a CSV file in plain English. The model and the database run in your browser; your file is never uploaded.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230d6e64'/><path d='M8 10h16M8 16h16M8 22h10' stroke='white' stroke-width='2.5' stroke-linecap='round'/></svg>">
+<link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="style.css">
 <script>
   // Cross-origin isolation (multi-threaded WASM) via coi-sw.js: register it, then
@@ -21,78 +22,92 @@
 </script>
 </head>
 <body>
-<header class="top">
-  <h1>SQLocal</h1>
-  <p class="lede">Ask questions about a CSV file in plain English. The model and the database run in your browser,
-    so your data never leaves your machine.</p>
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7"/><path d="M8 10h16M8 16h16M8 22h10"/></svg>
+      <span class="wordmark">SQLocal</span>
+    </div>
+    <p class="tagline">Ask a CSV file questions in plain English. The model and the database run in this browser tab.</p>
+    <div class="pills">
+      <span id="model-pill" class="pill" data-state="idle">Model not loaded</span>
+      <span class="pill" data-state="private">Your file stays on this device</span>
+    </div>
+  </div>
 </header>
 
-<main>
-  <div id="banner" class="banner" hidden></div>
+<main class="wrap workspace">
+  <div id="banner" class="banner" role="status" hidden></div>
 
-  <section class="card" aria-labelledby="model-h">
-    <h2 id="model-h"><span class="step">1</span> Model</h2>
-    <div class="row wrap">
-      <label for="model-select" class="muted">Model</label>
-      <select id="model-select"></select>
+  <aside class="setup" aria-label="Setup">
+    <section class="setup-section" aria-labelledby="model-h">
+      <h2 id="model-h" class="eyebrow">Model</h2>
+      <select id="model-select" aria-label="Model"></select>
       <button id="model-load" type="button">Download model</button>
-    </div>
-    <p id="model-status" class="muted" aria-live="polite"></p>
-    <progress id="model-progress" max="1" value="0" hidden></progress>
-  </section>
+      <p id="model-status" class="note" aria-live="polite"></p>
+      <progress id="model-progress" max="1" value="0" hidden></progress>
+    </section>
 
-  <section class="card" aria-labelledby="data-h">
-    <h2 id="data-h"><span class="step">2</span> Data</h2>
-    <label id="dropzone" class="dropzone" for="file-input">
-      <input id="file-input" type="file" accept=".csv,.tsv,.txt,text/csv">
-      <span><strong>Drop a CSV file here</strong> or click to choose one</span>
-    </label>
-    <div class="row wrap">
-      <button id="sample-load" type="button" class="secondary">Use sample data (300 orders)</button>
-      <span id="data-status" class="muted" aria-live="polite"></span>
-    </div>
-    <details id="schema-box" hidden>
-      <summary>Columns and first rows</summary>
-      <div id="columns" class="chips"></div>
-      <div id="preview" class="table-wrap"></div>
-    </details>
-  </section>
+    <section class="setup-section" aria-labelledby="data-h">
+      <h2 id="data-h" class="eyebrow">Data</h2>
+      <label id="dropzone" class="dropzone" for="file-input">
+        <input id="file-input" type="file" accept=".csv,.tsv,.txt,text/csv">
+        <span class="drop-title">Drop a CSV file here</span>
+        <span class="note">or click to choose one. DuckDB reads it inside this tab; nothing is uploaded.</span>
+      </label>
+      <button id="sample-load" type="button" class="quiet">Use the sample data (300 made-up orders)</button>
+      <p id="data-status" class="note" aria-live="polite"></p>
+      <div id="schema-box" hidden>
+        <h3 class="eyebrow">Columns</h3>
+        <div id="columns" class="schema"></div>
+        <details class="preview-box">
+          <summary>First rows</summary>
+          <div id="preview" class="table-wrap"></div>
+        </details>
+      </div>
+    </section>
+  </aside>
 
-  <section class="card" aria-labelledby="ask-h">
-    <h2 id="ask-h"><span class="step">3</span> Ask</h2>
-    <form id="ask-form" class="row">
-      <input id="question" type="text" autocomplete="off" placeholder="e.g. What is the total revenue by region?" aria-label="Question (English)">
-      <button id="ask" type="submit" disabled>Ask</button>
+  <section class="main" aria-label="Questions and results">
+    <form id="ask-form" class="ask">
+      <label for="question" class="eyebrow">Question, in English</label>
+      <div class="ask-row">
+        <input id="question" type="text" autocomplete="off" placeholder="What is the total revenue for each region?">
+        <button id="ask" type="submit" disabled>Ask</button>
+      </div>
     </form>
-    <div id="examples" class="chips" hidden></div>
-    <p id="ask-hint" class="muted">Load a model and a CSV file first. Questions must be in English.</p>
-  </section>
+    <div id="examples" class="examples" hidden></div>
+    <p id="ask-hint" class="note">Load the model and a CSV file to start asking.</p>
 
-  <section id="result-card" class="card" aria-labelledby="result-h" hidden>
-    <h2 id="result-h">Result</h2>
-    <label for="sql" class="muted">SQL (you can edit it and run it again)</label>
-    <textarea id="sql" rows="4" spellcheck="false"></textarea>
-    <p id="explain" class="explain" hidden></p>
-    <div class="row wrap">
-      <button id="run" type="button" class="secondary">Run SQL</button>
-      <button id="download" type="button" class="secondary" hidden>Download CSV</button>
-      <span id="result-status" class="muted" aria-live="polite"></span>
-    </div>
-    <ol id="attempts" class="attempts" hidden></ol>
-    <div id="error" class="error" hidden></div>
-    <div id="hints" class="hints" hidden></div>
-    <div id="chart" class="chart" hidden></div>
-    <div id="result" class="table-wrap"></div>
+    <section id="result-card" class="result" aria-labelledby="result-h" hidden>
+      <div class="result-head">
+        <h2 id="result-h" class="eyebrow">SQL</h2>
+        <span id="result-status" class="note" aria-live="polite"></span>
+      </div>
+      <label for="sql" class="sr-only">SQL query (you can edit it and run it again)</label>
+      <textarea id="sql" rows="3" spellcheck="false"></textarea>
+      <p id="explain" class="explain" hidden></p>
+      <div class="toolbar">
+        <button id="run" type="button" class="secondary">Run SQL</button>
+        <button id="download" type="button" class="secondary" hidden>Download CSV</button>
+        <span class="note">Edit the SQL and run it again if the answer looks wrong.</span>
+      </div>
+      <ol id="attempts" class="attempts" hidden></ol>
+      <div id="error" class="error" hidden></div>
+      <div id="hints" class="hints" hidden></div>
+      <div id="chart" class="chart" hidden></div>
+      <div id="result" class="table-wrap"></div>
+    </section>
   </section>
 </main>
 
-<footer class="muted">
-  Models: <a href="https://huggingface.co/Tehma/text2sql-qwen2.5-coder-1.5b-onnx">1.5B</a> (Apache 2.0) ·
-  <a href="https://huggingface.co/Tehma/text2sql-qwen2.5-coder-3b-onnx">3B</a> (Qwen Research License, non-commercial; Built with Qwen).
-  Fine-tuned on Spider. Generated SQL can be wrong, so check it before relying on a result.
-  <a href="https://github.com/Tehma123/text2sql-qlora">Source</a> ·
-  <a href="https://github.com/Tehma123/text2sql-qlora/issues/new?template=sqlocal-feedback.yml">Report a problem</a>
-  (opens GitHub; nothing is sent from this page)
+<footer class="wrap footer">
+  <p>Models: <a href="https://huggingface.co/Tehma/text2sql-qwen2.5-coder-1.5b-onnx">1.5B</a> (Apache 2.0),
+    <a href="https://huggingface.co/Tehma/text2sql-qwen2.5-coder-3b-onnx">3B</a> (Qwen Research License, non-commercial; Built with Qwen).
+    Fine-tuned on the Spider benchmark; it answered 45 of 50 test questions about real CSV files correctly, so check the SQL before relying on a result.</p>
+  <p><a href="https://github.com/Tehma123/text2sql-qlora">Source code</a> ·
+    <a href="https://github.com/Tehma123/text2sql-qlora/issues/new?template=sqlocal-feedback.yml">Report a problem</a>
+    (opens GitHub; nothing is sent from this page)</p>
 </footer>
 
 <script type="module" src="app.js"></script>
