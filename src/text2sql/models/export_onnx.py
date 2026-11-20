@@ -1,9 +1,14 @@
-"""Export a merged fp16 model to a q4f16 ONNX model for Transformers.js (WebGPU).
+"""Export a merged fp16 model to 4-bit ONNX for Transformers.js (WebGPU or WASM).
 
 Output follows the onnx-community repo layout Transformers.js loads from:
 
     <output>/config.json (with "transformers.js_config"), generation_config.json, tokenizer files
-    <output>/onnx/model_q4f16.onnx (+ model_q4f16.onnx_data)
+    <output>/onnx/model_q4f16.onnx (+ model_q4f16.onnx_data)   --dtype q4f16 (default): WebGPU
+    <output>/onnx/model_q4.onnx (+ model_q4.onnx_data)         --dtype q4: WASM fallback
+
+q4f16 has fp16 activations and KV cache (needs WebGPU with shader-f16); q4
+has the same 4-bit weights with fp32 activations, which the WASM (CPU)
+backend runs. Both can sit in one output directory.
 
 The graph is built by onnxruntime-genai's model builder, the tool behind the
 onnx-community repos: fused contrib ops (MultiHeadAttention, RotaryEmbedding,
@@ -16,7 +21,7 @@ SQLocal.md), so that path was dropped.
 
 The builder reads the fp16 merged model; an fp32 export of the 3B model would
 need ~12GB for the weights alone, more free RAM than the machine this runs on
-reliably has. The WASM fallback format (q4, fp32 activations) is not produced.
+reliably has.
 
 `--verify N` runs the zero-shot dev evaluation through onnxruntime (CUDA) on
 the first N dev examples, optionally comparing SQL against an evaluate.py
@@ -138,7 +143,71 @@ runpy.run_module("onnxruntime_genai.models.builder", run_name="__main__")
 """
 
 
-def export_genai(merged_dir: Path, output_dir: Path, block_size: int, shared_embeddings: bool) -> Path:
+def standard_ops_embedding(model):
+    """Replace GatherBlockQuantized (the 4-bit embedding lookup) with standard ONNX ops.
+
+    onnxruntime-web's WASM build has no GatherBlockQuantized kernel ("Could
+    not find an implementation for GatherBlockQuantized(1)"), so the q4 model
+    would not load on the CPU fallback. The same lookup, with the same 4-bit
+    weights (shared with lm_head) and the same numbers:
+
+        bytes  = Gather(packed [vocab, hidden/2], ids)          two 4-bit values per byte
+        values = interleave(bytes % 16, bytes // 16) - 8        low nibble first, zero point 8
+        embed  = values.reshape(..., hidden/block, block) * Gather(scales, ids)[..., None]
+    """
+    from onnx import TensorProto, helper, numpy_helper
+    import numpy as np
+
+    graph = model.graph
+    nodes = [n for n in graph.node if n.op_type == "GatherBlockQuantized"]
+    if not nodes:
+        return model
+    (node,) = nodes
+    attrs = {a.name: helper.get_attribute_value(a) for a in node.attribute}
+    assert attrs.get("bits") == 4 and attrs.get("gather_axis", 0) == 0 and attrs.get("quantize_axis") == 1, attrs
+    assert len(node.input) == 3, "zero points are not handled"
+    packed, ids, scales = node.input
+    block = attrs["block_size"]
+    n_blocks = next(list(i.dims) for i in graph.initializer if i.name == scales)[1]
+    hidden = n_blocks * block
+    p = "/model/embed_tokens/std/"
+
+    def const(name, array):
+        graph.initializer.append(numpy_helper.from_array(np.asarray(array), p + name))
+        return p + name
+
+    sixteen, eight = const("sixteen", np.int32(16)), const("eight", np.float32(8))
+    last = const("last_axis", np.array([-1], dtype=np.int64))
+    shape_blocks = const("shape_blocks", np.array([0, 0, n_blocks, block], dtype=np.int64))
+    shape_hidden = const("shape_hidden", np.array([0, 0, hidden], dtype=np.int64))
+    new = [
+        helper.make_node("Gather", [packed, ids], [p + "bytes"], axis=0),
+        helper.make_node("Cast", [p + "bytes"], [p + "ints"], to=TensorProto.INT32),
+        helper.make_node("Mod", [p + "ints", sixteen], [p + "low"]),
+        helper.make_node("Div", [p + "ints", sixteen], [p + "high"]),
+        helper.make_node("Unsqueeze", [p + "low", last], [p + "low1"]),
+        helper.make_node("Unsqueeze", [p + "high", last], [p + "high1"]),
+        helper.make_node("Concat", [p + "low1", p + "high1"], [p + "pairs"], axis=-1),
+        helper.make_node("Cast", [p + "pairs"], [p + "floats"], to=TensorProto.FLOAT),
+        helper.make_node("Sub", [p + "floats", eight], [p + "centered"]),
+        helper.make_node("Reshape", [p + "centered", shape_blocks], [p + "blocks"]),
+        helper.make_node("Gather", [scales, ids], [p + "scales"], axis=0),
+        helper.make_node("Unsqueeze", [p + "scales", last], [p + "scales1"]),
+        helper.make_node("Mul", [p + "blocks", p + "scales1"], [p + "scaled"]),
+        helper.make_node("Reshape", [p + "scaled", shape_hidden], list(node.output)),
+    ]
+    index = list(graph.node).index(node)
+    graph.node.remove(node)
+    for offset, n in enumerate(new):
+        graph.node.insert(index + offset, n)
+    return model
+
+
+# Transformers.js file name and builder execution provider for each dtype.
+_DTYPES = {"q4f16": ("model_q4f16.onnx", "webgpu"), "q4": ("model_q4.onnx", "cpu")}
+
+
+def export_genai(merged_dir: Path, output_dir: Path, block_size: int, shared_embeddings: bool, dtype: str = "q4f16") -> Path:
     import onnx
 
     with tempfile.TemporaryDirectory(dir=output_dir.parent) as tmp:
@@ -148,18 +217,21 @@ def export_genai(merged_dir: Path, output_dir: Path, block_size: int, shared_emb
             extra.append("shared_embeddings=true")
         cmd = [
             sys.executable, "-c", _BUILDER_SHIM,
-            "-i", str(merged_dir), "-o", str(tmp / "out"), "-p", "int4", "-e", "webgpu",
+            "-i", str(merged_dir), "-o", str(tmp / "out"), "-p", "int4", "-e", _DTYPES[dtype][1],
             "-c", str(tmp / "cache"), "--extra_options", *extra,
         ]
         logger.info("Running onnxruntime-genai model builder: %s", " ".join(cmd[3:]))
         subprocess.run(cmd, check=True)
         (output_dir / "onnx").mkdir(parents=True, exist_ok=True)
-        target = output_dir / "onnx" / "model_q4f16.onnx"
+        target = output_dir / "onnx" / _DTYPES[dtype][0]
         # Re-save rather than rename: the graph stores its external data file
         # name (the builder writes model.onnx.data; Transformers.js wants
-        # model_q4f16.onnx_data).
-        _save_onnx(onnx.load(str(tmp / "out" / "model.onnx")), target)
-        shutil.copy2(tmp / "out" / "genai_config.json", output_dir / "genai_config.json")
+        # <file>.onnx_data).
+        model = onnx.load(str(tmp / "out" / "model.onnx"))
+        if dtype == "q4":
+            model = standard_ops_embedding(model)  # the WASM backend lacks GatherBlockQuantized
+        _save_onnx(model, target)
+        shutil.copy2(tmp / "out" / "genai_config.json", output_dir / f"genai_config_{dtype}.json")
     write_root_files(merged_dir, output_dir)
     logger.info("Wrote %s", target)
     return target
@@ -204,11 +276,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--merged", required=True, help="merged fp16 model directory (scripts/merge_adapter.py)")
     parser.add_argument("--output", required=True, help="output directory, onnx-community layout")
+    parser.add_argument("--dtype", choices=list(_DTYPES), default="q4f16", help="q4f16 for WebGPU, q4 for the WASM fallback")
     parser.add_argument("--block-size", type=int, default=32)
     parser.add_argument("--no-shared-embeddings", action="store_true", help="keep separate embedding and lm_head weights")
     parser.add_argument("--skip-export", action="store_true", help="reuse the existing ONNX files, e.g. to only --verify")
     parser.add_argument("--verify", type=int, default=0, help="evaluate on the first N dev examples")
-    parser.add_argument("--verify-files", nargs="+", default=["model_q4f16.onnx"])
+    parser.add_argument("--verify-files", nargs="+", default=None, help="default: the file for --dtype")
     parser.add_argument("--reference", default=None, help="evaluate.py results JSON to compare SQL against")
     parser.add_argument("--data-config", default="configs/data_config.yaml")
     args = parser.parse_args()
@@ -217,11 +290,11 @@ def main():
     output_dir = resolve_path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
     if not args.skip_export:
-        export_genai(merged_dir, output_dir, args.block_size, not args.no_shared_embeddings)
+        export_genai(merged_dir, output_dir, args.block_size, not args.no_shared_embeddings, args.dtype)
     if args.verify:
         data_config = load_config(args.data_config)
         reference = resolve_path(args.reference) if args.reference else None
-        for name in args.verify_files:
+        for name in args.verify_files or [_DTYPES[args.dtype][0]]:
             verify(output_dir, name, args.verify, reference, data_config)
 
 
