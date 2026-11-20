@@ -185,7 +185,38 @@ App chạy tại **https://tehma123.github.io/text2sql-qlora/** (mã ở `web/ap
   - Trên GitHub Pages, profile trống: model 1.5B sẵn sàng sau **29 s** (tải 877 MB từ Hub), **11/12 câu đúng**. Chạy local: 1.5B 11/12, 3B 11/12.
   - Câu sai ở cả hai: "What percentage of orders are from returning customers?" (1.5B ra 166,7% do đảo tử và mẫu; 3B viết SQL lỗi, tự sửa 2 lần vẫn lặp lại).
   - **Giới hạn:** 12 câu do mình viết, trên dữ liệu đơn giản, nên chỉ là kiểm tra đường đi chứ chưa phải số đo accuracy. Với cách hỏi khác, lỗi hiểu nghĩa dễ gặp hơn: "highest revenue from Furniture" (không có "total") làm 1.5B lọc nhầm cột `product` và trả 0 dòng; "never sold in the West" ra `region != 'West'` thay vì `NOT IN`. Đây là lý do app luôn hiện SQL. Bộ 50 câu trên 5 CSV thật (M4) mới cho con số tin được.
-- Còn thiếu so với spec (M3): dự phòng WASM cho máy không có WebGPU, biểu đồ, gợi ý giá trị thật khi ra 0 dòng, dòng diễn giải SQL. M0 vẫn thiếu số đo trên máy thứ hai (laptop không GPU rời).
+- Phần còn thiếu lúc đó (dự phòng WASM, biểu đồ, gợi ý giá trị, dòng diễn giải) đã làm ở M3 bên dưới.
+
+## Việc đã làm cho M3 (độ bền)
+
+- [x] **Dự phòng khi không có WebGPU** (20/11): `python scripts/export_onnx.py --dtype q4 ...` tạo `model_q4.onnx` (4-bit, activation fp32, 982 MB) cho backend WASM; chỉ làm cho 1.5B (3B trên CPU quá chậm, menu ghi "needs WebGPU"). Accuracy 200 câu dev đầu 64,0%, bằng q4f16. Đã thêm vào repo Hub của 1.5B.
+  - onnxruntime-web bản WASM không có kernel `GatherBlockQuantized` (lỗi "Could not find an implementation for GatherBlockQuantized(1)"), nên phép tra embedding 4-bit được viết lại bằng op chuẩn (Gather, tách nibble bằng Mod/Div, nhân scale theo block); logits giống hệt (chênh 0,0), trọng số vẫn dùng chung với lm_head.
+  - App tự chuyển sang CPU khi thiếu `navigator.gpu`, adapter hoặc `shader-f16` (thử bằng `?device=wasm`), báo trước là chậm.
+  - Một luồng: trung vị **115 s** mỗi câu (TTFT 35 s). GitHub Pages không đặt được header COOP/COEP nên WASM không chạy đa luồng; thêm service worker `coi-sw.js` tự gắn COOP + COEP `credentialless` cho phản hồi cùng origin (model ở Hub và thư viện ở jsDelivr vẫn tải được, không cookie). Đa luồng: trung vị **33 s** (TTFT 10 s), 11/12 câu đúng như WebGPU. Trình duyệt chặn service worker thì vẫn chạy một luồng và câu thông báo nói rõ.
+- [x] **Biểu đồ** (`chart.js`, `insights.chartSpec`): kết quả 1 cột nhãn + 1 cột số → cột ngang (≤ 30 nhóm), nhãn dạng thời gian (2024-03) → đường theo thứ tự thời gian; tooltip khi rê chuột hoặc focus bàn phím; bảng kết quả bên dưới là bản xem dạng bảng. Màu một series, đã kiểm bằng validator của dataviz (≥ 3:1 trên nền sáng và tối).
+- [x] **Dòng diễn giải** (`insights.explainSql`): một câu tiếng Anh cho SQL một bảng đơn giản, ví dụ "Shows the total revenue for each region, from highest to lowest total revenue."; JOIN, subquery, HAVING thì không đoán mà bỏ qua. Tên cột đã đổi được thay lại bằng tên gốc.
+- [x] **Không có kết quả:** khi 0 dòng, hoặc 1 dòng toàn 0/NULL (phép tổng hợp trên tập rỗng), app liệt kê giá trị phổ biến của cột chữ đang lọc và khoảng giá trị của cột số đang lọc ("model_year: numbers from 70 to 82").
+- [x] **Sửa hoa thường:** giá trị chữ không có trong dữ liệu nhưng khớp đúng một giá trị khi bỏ qua hoa thường ('Japan' → 'japan') được thay, SQL hiện ra là SQL đã chạy, kèm ghi chú.
+- [x] **Lỗi tìm ra nhờ benchmark:** `explainSql` gặp `avg(tip/total_bill)` thì crash và app báo nhầm "The model failed" dù SQL đã chạy đúng. Đã sửa, và các phần phụ (diễn giải, biểu đồ, gợi ý) không còn làm hỏng kết quả chính.
+- [x] **Test đủ bảng Xử lý lỗi** (`python web/e2e/error_cases.py [--url ...]`): 13/13 kiểm tra pass ở local, gồm không WebGPU, hỏi trước khi tải (không có request nào tới file model trước khi bấm), lỗi SQL rồi sửa tay, chặn non-SELECT (kể cả `WITH ... INSERT`), 0 dòng có gợi ý, sửa hoa thường, tên cột tiếng Việt (tên gốc trong bảng và CSV xuất ra), file lớn (CSV 1.000.000 dòng, 19 MB: nạp 1,5 s, hiện 100 dòng, CSV xuất đủ 1.000.001 dòng), câu mơ hồ có dòng diễn giải.
+
+## Việc đã làm cho M4 (người dùng thật)
+
+- [x] **50 câu trên 5 CSV thật** (`python web/e2e/benchmark.py [--model 3b] [--url ...]`): dữ liệu mẫu của seaborn (tips 244 dòng, titanic 891, penguins 344, mpg 398, diamonds 53.940), tải theo commit cố định và kiểm SHA-256, không commit vào repo. Mỗi câu có SQL chuẩn chạy bằng DuckDB (Python) để ra đáp án; câu hỏi chạy qua chính app trong trình duyệt. Một số câu cố ý khó: giá trị viết khác hoa thường ('FEMALE', 'japan'), năm 2 chữ số (model_year = 70), cột tên `table` (phải đổi tên), nhóm NULL đông nhất (deck).
+
+  | | 1.5B | 3B |
+  |---|---|---|
+  | Đúng, trước khi thêm sửa hoa thường | 44/50 | 46/50 |
+  | **Đúng, bản hiện tại** | **45/50 (90%)** | **47/50 (94%)** |
+  | Thời gian sinh SQL (trung vị) | 0,6 s | 1,0 s |
+  | Lần đầu đã lỗi, cần tự sửa | 0 | 0 |
+
+  - Câu sai (bản hiện tại): cả hai sai "survival rate for women" (đếm hoặc liệt kê thay vì tính tỉ lệ), "which deck had the most passengers" (chọn nhóm NULL), "cars made in 1970" (dữ liệu ghi 70; app hiện gợi ý khoảng 70–82). 1.5B sai thêm "total bill for each day" (quên GROUP BY) và "biggest tip at lunch" (lấy nhầm cột total_bill).
+  - **Tỉ lệ cứu được nhờ tự sửa lỗi:** 0/50 câu lỗi ở lần đầu, nên chưa đo được. Các lỗi kiểu SQLite/DuckDB đã được `sqliteCompat` và việc đổi tên cột chặn trước; sai còn lại là sai nghĩa (SQL chạy được nhưng đáp án sai), vòng tự sửa không thấy được.
+  - **Giới hạn:** câu hỏi do mình viết, đã biết dữ liệu; người dùng thật sẽ hỏi lỏng hơn. Accuracy tính trên 50 câu nên khoảng tin cậy rộng (±8 điểm).
+- [x] **Chạy lại tất cả trên GitHub Pages** (20/11, mỗi bộ một profile trống): bảng Xử lý lỗi 13/13; WebGPU 1.5B 11/12 (model sẵn sàng sau 31 s, trang cross-origin isolated); CPU 1.5B 11/12 (tải 33 s, trung vị 27,5 s mỗi câu, TTFT 8,4 s); benchmark 50 câu 1.5B **45/50**, trung vị 0,5 s mỗi câu SQL. Kết quả trong `web/e2e/results/*pages*.json`.
+- [ ] **5–10 người dùng thử:** phải do bạn mời. Đã chuẩn bị: link "Report a problem" ở chân trang mở form GitHub (`.github/ISSUE_TEMPLATE/sqlocal-feedback.yml`: kết quả, câu hỏi, SQL, mô tả cột không kèm dữ liệu thật, trình duyệt, chỗ bị kẹt; trang không tự gửi gì). Gợi ý buổi thử 15 phút cho mỗi người: (1) mở link, tự tải model; (2) dùng dữ liệu mẫu, hỏi 2 câu tự nghĩ; (3) dùng một CSV của chính họ, hỏi 3 câu và tự kiểm tra đáp án; ghi lại chỗ họ dừng lại hoặc hỏi "giờ làm gì". Ưu tiên ít nhất 2 người dùng laptop không có GPU rời (đo luôn cho M0).
+- [ ] **Sửa các vấn đề gặp nhiều nhất** sau buổi thử.
 
 ## Rủi ro & câu hỏi mở
 

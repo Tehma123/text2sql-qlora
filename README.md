@@ -159,7 +159,7 @@ The fine-tuned adapters are also merged and exported to q4f16 ONNX for in-browse
 | [Tehma/text2sql-qwen2.5-coder-1.5b-onnx](https://huggingface.co/Tehma/text2sql-qwen2.5-coder-1.5b-onnx) | 71.4% | 877 MB | ~62 tok/s, 0.35-0.7 s per query | Apache 2.0 |
 | [Tehma/text2sql-qwen2.5-coder-3b-onnx](https://huggingface.co/Tehma/text2sql-qwen2.5-coder-3b-onnx) | 75.1% | 1.74 GB | ~46 tok/s, 0.5-1.0 s per query | Qwen Research (non-commercial) |
 
-Accuracy is for the 4-bit + adapter checkpoint on the full dev split (zero-shot); the difference is significant (exact McNemar p=0.006). Reproduce with `configs/train_config_1.5b.yaml` (1.5B) or `configs/train_config.yaml` (3B), then:
+Accuracy is for the 4-bit + adapter checkpoint on the full dev split (zero-shot); the difference is significant (exact McNemar p=0.006). Through the app itself, on 50 questions about five real CSV files (seaborn's tips, titanic, penguins, mpg and diamonds; `web/e2e/benchmark.py`), the 1.5B model answers 45 and the 3B model 47 correctly. Without WebGPU the app runs a q4 version of the 1.5B model on the CPU (982 MB, about 30 s per question, multi-threaded via a COOP/COEP service worker). Reproduce with `configs/train_config_1.5b.yaml` (1.5B) or `configs/train_config.yaml` (3B), then:
 
 ```bash
 python scripts/merge_adapter.py --adapter checkpoints/1.5b/checkpoint-600 --output checkpoints/1.5b/merged-600-fp16
@@ -194,6 +194,8 @@ The full log (decisions, bugs, measurements) is in the "Việc cần chạy cho 
 - [x] Acceptance review: all reported numbers recomputed from the per-example results; few-shot demo exclusion fixed in code (not re-run); target set to 75%. **Project closed 2026-10-09.**
 - [x] Follow-up (2026-11): retrain 3B v2, train a 1.5B model on the same config, export both to q4f16 ONNX for the browser and publish them on the Hugging Face Hub (see [Browser models](#browser-models))
 - [x] SQLocal MVP deployed to GitHub Pages: CSV upload, English question, SQL + result table, read-only check, automatic fixes, CSV export
+- [x] SQLocal robustness: CPU fallback without WebGPU, charts, plain-English SQL reading, value hints and case fixes when nothing matches, every error case tested; 50-question benchmark on real CSVs
+- [ ] SQLocal user testing with 5–10 people (feedback form ready: "Report a problem" in the app)
 
 Full write-up: [`reports/technical_report.md`](reports/technical_report.md). Working reports with the complete step-by-step trace (bugs hit, decisions made, and why) are in [`reports/`](reports/).
 
