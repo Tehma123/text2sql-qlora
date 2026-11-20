@@ -46,6 +46,11 @@ function banner(text, isError = false) {
   el.classList.toggle("err", isError);
 }
 const fmtMB = (bytes) => `${Math.round(bytes / 1e6)} MB`;
+function setPill(text, state) {
+  const pill = $("model-pill");
+  pill.textContent = text;
+  pill.dataset.state = state;
+}
 const fmtSec = (ms) => `${(ms / 1000).toFixed(1)} s`;
 function storedGet(key) { try { return localStorage.getItem(key); } catch { return null; } }
 function storedSet(key, value) { try { localStorage.setItem(key, value); } catch { /* storage unavailable */ } }
@@ -86,12 +91,13 @@ function tableToRows(table, limit = Infinity) {
 function renderTable(container, { columns, rows, numeric }) {
   const tableEl = document.createElement("table");
   const head = tableEl.createTHead().insertRow();
-  for (const c of columns) {
+  columns.forEach((c, i) => {
     const th = document.createElement("th");
     th.textContent = state.labels.get(c) ?? c; // original CSV header for renamed columns
     if (state.labels.has(c)) th.title = `${c} in SQL`;
+    if (numeric[i]) th.className = "num"; // header lines up with the right-aligned numbers
     head.appendChild(th);
-  }
+  });
   const body = tableEl.createTBody();
   for (const row of rows) {
     const tr = body.insertRow();
@@ -165,6 +171,7 @@ function startWorker() {
       $("model-status").textContent = `Downloading the model: ${fmtMB(loaded)} of ${fmtMB(total)}...`;
     } else if (data.type === "ready") {
       state.modelReady = true;
+      setPill(`Model ready · ${state.backend.device === "wasm" ? "CPU" : "WebGPU"}`, "ready");
       $("model-progress").hidden = true;
       const where = state.backend.device === "wasm" ? " on the CPU" : "";
       $("model-status").textContent = `Model ready${where} (loaded in ${fmtSec(data.loadMs)}). It is saved in your browser for next time.`;
@@ -185,6 +192,7 @@ function startWorker() {
         $("model-load").hidden = false;
         $("model-load").disabled = false;
         banner(`The model could not be loaded: ${data.message}`, true);
+        setPill("Model failed to load", "error");
       }
     }
   };
@@ -200,6 +208,7 @@ async function loadModel() {
   const cached = await isModelCached(info.id);
   if (!cached) await warnIfStorageTight(modelBytes(info));
   $("model-status").textContent = cached ? "Loading the model from your browser's storage..." : "Starting the download...";
+  setPill(cached ? "Loading model" : "Downloading model", "loading");
   startWorker();
   state.worker.postMessage({ type: "load", modelId: info.id, ...state.backend });
   updateAskEnabled();
@@ -220,6 +229,7 @@ async function refreshModelChoice() {
   } else {
     $("model-load").textContent = `Download model (${fmtMB(modelBytes(info))})`;
     $("model-status").textContent = `One-time download of ${fmtMB(modelBytes(info))}; after that the model loads from your browser's storage.`;
+    setPill("Model not downloaded", "idle");
   }
 }
 
@@ -302,6 +312,7 @@ async function loadSample() {
     return b;
   }));
   $("examples").hidden = false;
+  $("data-status").textContent += " This is made-up sample data: drop your own CSV to replace it.";
 }
 
 // ---------- ask / run ----------
@@ -536,6 +547,7 @@ async function init() {
   $("run").addEventListener("click", runManual);
   $("download").addEventListener("click", downloadCsv);
   updateAskEnabled();
+  if (!state.table) await loadSample(); // first view shows a loaded example, clearly marked as sample data
 }
 
 init();

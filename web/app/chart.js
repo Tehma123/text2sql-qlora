@@ -139,10 +139,34 @@ function lineChart(container, spec) {
   container.prepend(svg);
 }
 
-/** Renders the spec into `container` (emptied first); null spec clears it. */
+const drawn = new WeakMap(); // container -> {spec, width}
+let observer = null;
+
+function draw(container, spec) {
+  container.replaceChildren();
+  (spec.kind === "line" ? lineChart : barChart)(container, spec);
+  drawn.set(container, { spec, width: container.clientWidth });
+}
+
+/**
+ * Renders the spec into `container` (emptied first); null spec clears it.
+ * The SVG is laid out in real pixels, so it is redrawn when the container's
+ * width changes (window resized, phone rotated) instead of being scaled,
+ * which would shrink its text.
+ */
 export function renderChart(container, spec) {
   container.replaceChildren();
   container.hidden = !spec;
+  drawn.delete(container);
   if (!spec) return;
-  (spec.kind === "line" ? lineChart : barChart)(container, spec);
+  draw(container, spec);
+  if (!observer && "ResizeObserver" in window) {
+    observer = new ResizeObserver((entries) => {
+      for (const { target } of entries) {
+        const last = drawn.get(target);
+        if (last && Math.abs(target.clientWidth - last.width) > 24) draw(target, last.spec);
+      }
+    });
+  }
+  observer?.observe(container);
 }
