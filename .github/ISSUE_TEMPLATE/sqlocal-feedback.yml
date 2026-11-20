@@ -1,0 +1,55 @@
+name: SQLocal feedback
+description: Tell us how SQLocal worked for you (a wrong answer, an error, or where you got stuck).
+title: "[SQLocal] "
+labels: ["sqlocal-feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying SQLocal. Please do not paste private data: describe the columns instead of
+        sharing the file, and change any real names or numbers in the question.
+  - type: dropdown
+    id: outcome
+    attributes:
+      label: What happened?
+      options:
+        - The answer was right
+        - The answer was wrong
+        - The SQL failed with an error
+        - The model did not load
+        - I got stuck somewhere else
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      placeholder: "e.g. What is the total revenue for each region?"
+  - type: textarea
+    id: sql
+    attributes:
+      label: The SQL SQLocal showed (copy it from the SQL box)
+      render: sql
+  - type: textarea
+    id: columns
+    attributes:
+      label: Your columns (names and what they contain, no real data)
+      placeholder: "e.g. order_date (dates), region (North/South/...), revenue (numbers)"
+  - type: textarea
+    id: stuck
+    attributes:
+      label: What did you expect, and where did you get stuck?
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and computer
+      placeholder: "e.g. Chrome 131 on a Windows laptop without a separate graphics card"
+  - type: dropdown
+    id: model
+    attributes:
+      label: Model
+      options:
+        - "Standard: 1.5B"
+        - "High accuracy: 3B"
+        - "CPU mode (no WebGPU)"
+        - "Not sure"
