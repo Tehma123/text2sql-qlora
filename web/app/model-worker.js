@@ -1,6 +1,7 @@
-// Runs the text-to-SQL model off the main thread (Transformers.js on WebGPU).
+// Runs the text-to-SQL model off the main thread (Transformers.js on WebGPU,
+// or on the CPU through WASM when WebGPU is missing).
 //
-// Messages in:  {type: "load", modelId}
+// Messages in:  {type: "load", modelId, device: "webgpu"|"wasm", dtype: "q4f16"|"q4"}
 //               {type: "generate", id, messages}
 // Messages out: {type: "progress", file, loaded, total}
 //               {type: "ready", loadMs}
@@ -15,15 +16,15 @@ env.useBrowserCache = true;
 let tokenizer = null;
 let model = null;
 
-async function load(modelId) {
+async function load(modelId, device, dtype) {
   const t0 = performance.now();
   const progress_callback = (p) => {
     if (p.status === "progress") postMessage({ type: "progress", file: p.file, loaded: p.loaded, total: p.total });
   };
   tokenizer = await AutoTokenizer.from_pretrained(modelId, { progress_callback });
   model = await AutoModelForCausalLM.from_pretrained(modelId, {
-    dtype: "q4f16",
-    device: "webgpu",
+    dtype,
+    device,
     use_external_data_format: true,
     progress_callback,
   });
@@ -52,7 +53,7 @@ async function generate(id, messages) {
 
 self.onmessage = async ({ data }) => {
   try {
-    if (data.type === "load") await load(data.modelId);
+    if (data.type === "load") await load(data.modelId, data.device, data.dtype);
     else if (data.type === "generate") await generate(data.id, data.messages);
   } catch (e) {
     postMessage({ type: "error", id: data.id, message: String(e?.message ?? e) });
